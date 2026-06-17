@@ -122,20 +122,21 @@ class TonesModule {
     this.session.total++;
     if (correct) this.session.correct++;
     this._recordTone(truth, correct);
+    if (correct) window.celebrateCorrect?.();
 
+    // The button colors (green = right tone, red = your wrong pick) already
+    // signal the answer, so we don't spell out "it was huyền".
     this.el.choices.querySelectorAll('.t-choice').forEach(b => {
       b.disabled = true;
       if (b.dataset.tone === truth) b.classList.add('t-correct');
       else if (b.dataset.tone === picked) b.classList.add('t-wrong');
     });
 
-    const td = TONE_DEFS.find(t => t.id === truth);
+    // Reveal just the word + meaning (the diacritic shows the tone).
     const w = this.current;
     const meaning = (w.meanings || [])[0] || '';
-    this.el.reveal.innerHTML = `<span class="t-reveal-word">${esc(w.word)}</span>
-      <span class="t-reveal-meta">${esc(td.name)} (${esc(td.en)})${meaning ? ' · ' + esc(meaning) : ''}</span>`;
-    this.el.feedback.className = `feedback ${correct ? 'correct' : 'incorrect'}`;
-    this.el.feedback.innerHTML = `<div class="fb-verdict">${correct ? '✓ Correct!' : '✗ It was ' + esc(td.name)}</div>`;
+    this.el.reveal.innerHTML = `<span class="t-reveal-word">${esc(w.word)}</span>${
+      meaning ? `<span class="t-reveal-meta">${esc(meaning)}</span>` : ''}`;
     this.el.next.classList.remove('hidden');
     this.el.next.focus();
     this._refreshStats();

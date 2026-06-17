@@ -53,6 +53,7 @@ class ClozeModule {
           <input id="cz-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Type the missing word… (Telex: as→á)">
           <button class="btn" id="cz-check">Check</button>
         </div>
+        <button class="btn-ghost btn-dontknow" id="cz-dontknow" type="button">I don't know</button>
         <div id="cz-feedback" class="feedback hidden"></div>
         <button class="btn btn-next hidden" id="cz-next">Next →</button>
       </div>
@@ -70,11 +71,13 @@ class ClozeModule {
       sentence: this.container.querySelector('#cz-sentence'),
       input: this.container.querySelector('#cz-input'),
       check: this.container.querySelector('#cz-check'),
+      dontknow: this.container.querySelector('#cz-dontknow'),
       feedback: this.container.querySelector('#cz-feedback'),
       next: this.container.querySelector('#cz-next'),
       empty: this.container.querySelector('#cz-empty'),
     };
     this.el.check.addEventListener('click', () => this._submit());
+    this.el.dontknow.addEventListener('click', () => this._dontKnow());
     this.el.next.addEventListener('click', () => this._advance());
     this.el.input.addEventListener('keydown', e => {
       if (e.key !== 'Enter' || e.repeat) return;
@@ -124,6 +127,7 @@ class ClozeModule {
     this.el.count.textContent = `${this.queue.length} left`;
     this.el.feedback.className = 'feedback hidden';
     this.el.next.classList.add('hidden');
+    this.el.dontknow.classList.remove('hidden');
     this.el.check.disabled = false;
     this.el.input.disabled = false;
     this.el.input.value = '';
@@ -134,8 +138,19 @@ class ClozeModule {
   _submit() {
     const raw = this.el.input.value.trim();
     if (!raw) return;
+    const correct = checkVietnamese(raw, this.current.word.word);
+    if (correct) window.celebrateCorrect?.();
+    this._reveal(correct, raw);
+  }
+
+  // Reveal the answer without typing a guess; counts as a fail.
+  _dontKnow() {
+    if (!this.el.feedback.classList.contains('hidden')) return;
+    this._reveal(false, null);
+  }
+
+  _reveal(correct, typed) {
     const { word } = this.current;
-    const correct = checkVietnamese(raw, word.word);
     this.session.total++;
     if (correct) this.session.correct++;
     if (typeof recordAnswer === 'function') recordAnswer(word.id, 'en-vi', correct);
@@ -145,13 +160,14 @@ class ClozeModule {
     this.el.feedback.className = `feedback ${correct ? 'correct' : 'incorrect'}`;
     this.el.feedback.innerHTML = `
       <div class="fb-verdict">${correct ? '✓ Correct!' : '✗ Incorrect'}</div>
-      ${!correct ? `<div class="fb-typed">You typed: <em>${esc(raw)}</em></div>` : ''}
+      ${(!correct && typed) ? `<div class="fb-typed">You typed: <em>${esc(typed)}</em></div>` : ''}
       <div class="fb-word"><div class="fb-chars">${esc(word.word)}</div>
         <div class="fb-meanings">${esc((word.meanings || [])[0] || '')}</div></div>
       <div class="fb-ex"><div class="fb-ex-zh">${full}</div></div>
     `;
     this.el.check.disabled = true;
     this.el.input.disabled = true;
+    this.el.dontknow.classList.add('hidden');
     this.el.next.classList.remove('hidden');
     this._feedbackShownAt = Date.now();
     this.el.next.focus();

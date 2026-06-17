@@ -168,6 +168,32 @@ function updateBottomNavActive(tab) {
     .forEach(b => b.classList.toggle('bn-active', b.dataset.tab === tab));
 }
 
+// ── Correct-answer celebration ─────────────────────────
+// A little dopamine: a haptic buzz (on supporting devices) + a confetti burst.
+window.celebrateCorrect = function () {
+  try { if (navigator.vibrate) navigator.vibrate([18, 22, 45]); } catch {}
+  _confettiBurst();
+};
+
+function _confettiBurst() {
+  const COLORS = ['#3fb950', '#ffde00', '#e03040', '#58a6ff', '#ffffff'];
+  const wrap = document.createElement('div');
+  wrap.className = 'confetti';
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement('i');
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 70 + Math.random() * 130;
+    p.style.setProperty('--x', `${Math.cos(ang) * dist}px`);
+    p.style.setProperty('--y', `${Math.sin(ang) * dist}px`);
+    p.style.setProperty('--r', `${(Math.random() * 2 - 1) * 540}deg`);
+    p.style.background = COLORS[i % COLORS.length];
+    p.style.animationDelay = `${Math.random() * 60}ms`;
+    wrap.appendChild(p);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 1000);
+}
+
 function showToast(msg) {
   const el = document.createElement('div');
   el.className = 'toast'; el.textContent = msg;

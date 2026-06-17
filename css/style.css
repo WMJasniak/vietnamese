@@ -1894,4 +1894,69 @@ html { overscroll-behavior-y: none; }
     right: 1rem;
     max-width: none;
   }
+
+  .app-title { font-size: 1.25rem; }
+}
+
+/* ── "I don't know" button ──────────────────────────── */
+.btn-dontknow {
+  display: block;
+  width: 100%;
+  margin-top: 0.6rem;
+  background: transparent;
+  color: var(--dim);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 0.6rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: color 0.15s, border-color 0.15s;
+}
+.btn-dontknow:hover { color: var(--text); border-color: var(--dim); }
+.btn-dontknow.hidden { display: none; }
+
+/* ── Title polish (gold flag star) ──────────────────── */
+.app-title { font-size: 1.4rem; letter-spacing: 0.015em; }
+.app-title::before {
+  content: "★";
+  color: #ffde00;
+  margin-right: 0.4rem;
+  font-size: 0.95em;
+  line-height: 1;
+}
+
+/* ── Correct-answer flourish ────────────────────────── */
+.feedback.correct .fb-verdict { animation: fb-pop 0.36s ease; }
+@keyframes fb-pop {
+  0%   { transform: scale(0.82); }
+  60%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.confetti {
+  position: fixed;
+  left: 50%;
+  top: 42%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 300;
+}
+.confetti i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confetti-fly 0.9s ease-out forwards;
+}
+@keyframes confetti-fly {
+  0%   { transform: translate(0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--x), var(--y)) rotate(var(--r)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti { display: none; }
+  .feedback.correct .fb-verdict { animation: none; }
 }

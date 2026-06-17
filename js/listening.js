@@ -46,6 +46,7 @@ class ListeningModule {
           <input id="ls-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Type the Vietnamese word… (Telex: as→á)">
           <button class="btn" id="ls-check">Check</button>
         </div>
+        <button class="btn-ghost btn-dontknow" id="ls-dontknow" type="button">I don't know</button>
         <div id="ls-feedback" class="feedback hidden"></div>
         <button class="btn btn-next hidden" id="ls-next">Next →</button>
       </div>
@@ -56,11 +57,13 @@ class ListeningModule {
       reveal: this.container.querySelector('#ls-reveal'),
       input: this.container.querySelector('#ls-input'),
       check: this.container.querySelector('#ls-check'),
+      dontknow: this.container.querySelector('#ls-dontknow'),
       feedback: this.container.querySelector('#ls-feedback'),
       next: this.container.querySelector('#ls-next'),
     };
     this.el.play.addEventListener('click', () => { if (this.current) speakVi(this.current.word); });
     this.el.check.addEventListener('click', () => this._submit());
+    this.el.dontknow.addEventListener('click', () => this._dontKnow());
     this.el.next.addEventListener('click', () => this._advance());
     this.el.input.addEventListener('keydown', e => {
       if (e.key !== 'Enter' || e.repeat) return;
@@ -77,6 +80,7 @@ class ListeningModule {
     this.el.reveal.textContent = '';
     this.el.feedback.className = 'feedback hidden';
     this.el.next.classList.add('hidden');
+    this.el.dontknow.classList.remove('hidden');
     this.el.check.disabled = false;
     this.el.input.disabled = false;
     this.el.input.value = '';
@@ -88,9 +92,20 @@ class ListeningModule {
     if (this.answered) return;
     const raw = this.el.input.value.trim();
     if (!raw) return;
+    const correct = checkVietnamese(raw, this.current.word);
+    if (correct) window.celebrateCorrect?.();
+    this._reveal(correct, raw);
+  }
+
+  // Reveal without guessing; counts as a fail.
+  _dontKnow() {
+    if (this.answered) return;
+    this._reveal(false, null);
+  }
+
+  _reveal(correct, typed) {
     this.answered = true;
     const word = this.current;
-    const correct = checkVietnamese(raw, word.word);
     this.session.total++;
     if (correct) this.session.correct++;
     if (typeof recordAnswer === 'function') recordAnswer(word.id, 'en-vi', correct);
@@ -99,12 +114,13 @@ class ListeningModule {
     this.el.feedback.className = `feedback ${correct ? 'correct' : 'incorrect'}`;
     this.el.feedback.innerHTML = `
       <div class="fb-verdict">${correct ? '✓ Correct!' : '✗ Incorrect'}</div>
-      ${!correct ? `<div class="fb-typed">You typed: <em>${esc(raw)}</em></div>` : ''}
+      ${(!correct && typed) ? `<div class="fb-typed">You typed: <em>${esc(typed)}</em></div>` : ''}
       <div class="fb-word"><div class="fb-chars">${esc(word.word)}</div>
         <div class="fb-meanings">${esc((word.meanings || [])[0] || '')}</div></div>
     `;
     this.el.check.disabled = true;
     this.el.input.disabled = true;
+    this.el.dontknow.classList.add('hidden');
     this.el.next.classList.remove('hidden');
     this._feedbackShownAt = Date.now();
     this.el.next.focus();

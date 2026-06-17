@@ -114,6 +114,10 @@ function _speakViNet(text) {
 }
 
 function _showNoVoiceNotice() {
+  // Disabled: TTS works (native Android engine / online fallback), so the
+  // install banner was just noise. Kept as a no-op so callers don't break.
+  return;
+  /* eslint-disable no-unreachable */
   if (sessionStorage.getItem('vn_voice_notice_dismissed')) return;
   if (document.getElementById('vn-voice-notice')) return;
 
@@ -196,6 +200,7 @@ class VocabModule {
             <input id="v-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Your answer…">
             <button class="btn" id="v-check">Check</button>
           </div>
+          <button class="btn-ghost btn-dontknow" id="v-dontknow" type="button">I don't know</button>
           <div id="v-feedback" class="feedback hidden"></div>
           <button class="btn btn-next hidden" id="v-next">Next →</button>
         </div>
@@ -220,6 +225,7 @@ class VocabModule {
       hint: this.container.querySelector('#v-hint'),
       input: this.container.querySelector('#v-input'),
       check: this.container.querySelector('#v-check'),
+      dontknow: this.container.querySelector('#v-dontknow'),
       feedback: this.container.querySelector('#v-feedback'),
       next: this.container.querySelector('#v-next'),
       done: this.container.querySelector('#v-done'),
@@ -229,6 +235,7 @@ class VocabModule {
       addMore: this.container.querySelector('#v-add-more'),
     };
     this.el.check.addEventListener('click', () => this._submit());
+    this.el.dontknow.addEventListener('click', () => this._dontKnow());
     this.el.next.addEventListener('click',  () => this._advance());
     this.el.addMore.addEventListener('click', () => this._addMore());
     this.el.input.addEventListener('keydown', e => {
@@ -312,6 +319,7 @@ class VocabModule {
     this.el.qcount.textContent = `${this.queue.length} left`;
     this.el.feedback.className = 'feedback hidden';
     this.el.next.classList.add('hidden');
+    this.el.dontknow.classList.remove('hidden');
     this.el.check.disabled = false;
     this.el.input.disabled = false;
     this.el.input.value = '';
@@ -327,12 +335,27 @@ class VocabModule {
       ? checkEnglish(raw, [...(word.meanings || []), ...(word.altMeanings || [])])
       : checkVietnamese(raw, word.word);
     recordAnswer(word.id, direction, correct);
+    if (correct) window.celebrateCorrect?.();
     if (!correct && !(this.current.requeueCount > 0)) {
       this.current.requeueCount = (this.current.requeueCount || 0) + 1;
       this.queue.push(this.current);
     }
     this._refreshStats();
     this._showFeedback(correct, word, direction, raw);
+  }
+
+  // "I don't know" — reveal the answer and count it as a fail, without making
+  // the user type a throwaway guess (which would corrupt the SRS schedule).
+  _dontKnow() {
+    if (!this.el.feedback.classList.contains('hidden')) return;
+    const { word, direction } = this.current;
+    recordAnswer(word.id, direction, false);
+    if (!(this.current.requeueCount > 0)) {
+      this.current.requeueCount = (this.current.requeueCount || 0) + 1;
+      this.queue.push(this.current);
+    }
+    this._refreshStats();
+    this._showFeedback(false, word, direction, null);
   }
 
   _showFeedback(correct, word, direction, typed) {
@@ -354,7 +377,7 @@ class VocabModule {
       </div>` : '';
     fb.innerHTML = `
       <div class="fb-verdict">${correct ? '✓ Correct!' : '✗ Incorrect'}</div>
-      ${!correct ? `<div class="fb-typed">You typed: <em>${esc(typed)}</em></div>` : ''}
+      ${(!correct && typed) ? `<div class="fb-typed">You typed: <em>${esc(typed)}</em></div>` : ''}
       <div class="fb-word">
         <div class="fb-chars">${esc(word.word)}</div>
         <div class="fb-pinyin">${esc((word.pos || []).join(' · '))} · ${esc(word.cefr || '')}</div>
@@ -364,6 +387,7 @@ class VocabModule {
     `;
     this.el.check.disabled = true;
     this.el.input.disabled = true;
+    this.el.dontknow.classList.add('hidden');
     this.el.next.classList.remove('hidden');
     this.el.next.focus();
   }
