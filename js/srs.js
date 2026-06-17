@@ -381,7 +381,7 @@ function removeTodayGoal() {
 const SETTINGS_KEY = 'vn_settings_v1';
 
 function getSettings() {
-  const defaults = { dailyGoalMins: 30, retentionTarget: 0.9, newPerDay: NEW_PER_DAY_DEFAULT, autoSpeakVocab: true };
+  const defaults = { dailyGoalMins: 30, retentionTarget: 0.9, newPerDay: NEW_PER_DAY_DEFAULT, autoSpeakVocab: true, autoSpeakExamples: true };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
   catch { return defaults; }
 }

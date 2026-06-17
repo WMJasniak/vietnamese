@@ -320,9 +320,10 @@ class GrammarModule {
         <div class="fb-ex-en">${esc(ex.en || '')}</div>
       </div>
     `;
-    // Hear the whole example sentence; also auto-play it once on reveal.
+    // Hear the whole example sentence; also auto-play it once on reveal
+    // (unless the user turned auto-play off in Settings).
     this.el.feedback.querySelector('#gr-speak')?.addEventListener('click', () => speakVi(ex.vi));
-    if (typeof speakVi === 'function') speakVi(ex.vi);
+    if (typeof speakVi === 'function' && getSettings().autoSpeakExamples !== false) speakVi(ex.vi);
 
     this.el.check.disabled = true;
     this.el.input.disabled = true;

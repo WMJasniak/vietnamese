@@ -32,6 +32,13 @@ class SettingsModule {
           </label>
         </div>
         <div class="setting-row">
+          <span class="setting-label">Auto-play example sentences on reveal (Grammar &amp; Cloze)</span>
+          <label class="setting-toggle-label">
+            <input type="checkbox" id="s-autospeak-ex" ${s.autoSpeakExamples !== false ? 'checked' : ''}>
+            <span id="s-autospeak-ex-text">${s.autoSpeakExamples !== false ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+        <div class="setting-row">
           <span class="setting-label">Accept en→vi answers without diacritics</span>
           <label class="setting-toggle-label">
             <input type="checkbox" id="s-no-diacritics" ${s.acceptNoDiacritics === true ? 'checked' : ''}>
@@ -99,6 +106,11 @@ class SettingsModule {
     this.container.querySelector('#s-autospeak').addEventListener('change', e => {
       saveSettings({ ...getSettings(), autoSpeakVocab: e.target.checked });
       this.container.querySelector('#s-autospeak-text').textContent = e.target.checked ? 'On' : 'Off';
+    });
+
+    this.container.querySelector('#s-autospeak-ex').addEventListener('change', e => {
+      saveSettings({ ...getSettings(), autoSpeakExamples: e.target.checked });
+      this.container.querySelector('#s-autospeak-ex-text').textContent = e.target.checked ? 'On' : 'Off';
     });
 
     this.container.querySelector('#s-no-diacritics').addEventListener('change', e => {

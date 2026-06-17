@@ -155,16 +155,24 @@ class ClozeModule {
     if (correct) this.session.correct++;
     if (typeof recordAnswer === 'function') recordAnswer(word.id, 'en-vi', correct);
 
+    const ex = this.current.ex;
     const full = (typeof highlightTarget === 'function')
-      ? highlightTarget(this.current.ex.vi, word.word) : esc(this.current.ex.vi);
+      ? highlightTarget(ex.vi, word.word) : esc(ex.vi);
     this.el.feedback.className = `feedback ${correct ? 'correct' : 'incorrect'}`;
     this.el.feedback.innerHTML = `
       <div class="fb-verdict">${correct ? '✓ Correct!' : '✗ Incorrect'}</div>
       ${(!correct && typed) ? `<div class="fb-typed">You typed: <em>${esc(typed)}</em></div>` : ''}
       <div class="fb-word"><div class="fb-chars">${esc(word.word)}</div>
         <div class="fb-meanings">${esc((word.meanings || [])[0] || '')}</div></div>
-      <div class="fb-ex"><div class="fb-ex-zh">${full}</div></div>
+      <div class="fb-ex">
+        <div class="fb-ex-zh">${full} <button class="zh-speak gr-speak" id="cz-speak" type="button" aria-label="Listen" title="Listen">🔊</button></div>
+        <div class="fb-ex-en">${esc(ex.en || '')}</div>
+      </div>
     `;
+    // Hear the whole sentence; auto-play once on reveal (Settings can disable).
+    this.el.feedback.querySelector('#cz-speak')?.addEventListener('click', () => speakVi(ex.vi));
+    if (typeof speakVi === 'function' && getSettings().autoSpeakExamples !== false) speakVi(ex.vi);
+
     this.el.check.disabled = true;
     this.el.input.disabled = true;
     this.el.dontknow.classList.add('hidden');
