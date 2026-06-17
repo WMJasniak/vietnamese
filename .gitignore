@@ -19,3 +19,6 @@ android/captures/
 android/app/src/main/assets/www/
 # Built APK
 tiengviet.apk
+
+# Local backup of the signing keystore — NEVER commit (key + password)
+keystore-backup/
