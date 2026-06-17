@@ -1611,6 +1611,10 @@ main {
   .card { padding: 1.5rem; }
   .zh-char { font-size: 3.5rem; }
   .en-word { font-size: 1.6rem; }
+  /* Stack the answer input and its button so the button is full-width and
+     reachable, instead of being pushed to the far right edge. */
+  .card-input-row { flex-direction: column; }
+  .card-input-row .btn { width: 100%; }
 }
 
 /* No-vi-voice install notice (Vietnamese-app-specific) */

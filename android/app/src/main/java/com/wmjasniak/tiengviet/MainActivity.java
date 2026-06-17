@@ -1,11 +1,14 @@
 package com.wmjasniak.tiengviet;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.webkit.JavascriptInterface;
+import android.webkit.JsPromptResult;
+import android.webkit.JsResult;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -13,6 +16,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.EditText;
 
 import androidx.webkit.WebViewAssetLoader;
 
@@ -76,6 +80,46 @@ public class MainActivity extends Activity {
                     filePathCallback = null;
                     return false;
                 }
+                return true;
+            }
+
+            // A bare WebView ignores window.alert/confirm/prompt (confirm returns
+            // false → "Cancel"), which silently breaks Stop session, Reset, Delete,
+            // etc. Wire them to real native dialogs.
+            @Override
+            public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(message)
+                        .setPositiveButton(android.R.string.ok, (d, w) -> result.confirm())
+                        .setOnCancelListener(d -> result.cancel())
+                        .show();
+                return true;
+            }
+
+            @Override
+            public boolean onJsConfirm(WebView view, String url, String message, JsResult result) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(message)
+                        .setPositiveButton(android.R.string.ok, (d, w) -> result.confirm())
+                        .setNegativeButton(android.R.string.cancel, (d, w) -> result.cancel())
+                        .setOnCancelListener(d -> result.cancel())
+                        .show();
+                return true;
+            }
+
+            @Override
+            public boolean onJsPrompt(WebView view, String url, String message,
+                                      String defaultValue, JsPromptResult result) {
+                final EditText input = new EditText(MainActivity.this);
+                if (defaultValue != null) input.setText(defaultValue);
+                new AlertDialog.Builder(MainActivity.this)
+                        .setMessage(message)
+                        .setView(input)
+                        .setPositiveButton(android.R.string.ok,
+                                (d, w) -> result.confirm(input.getText().toString()))
+                        .setNegativeButton(android.R.string.cancel, (d, w) -> result.cancel())
+                        .setOnCancelListener(d -> result.cancel())
+                        .show();
                 return true;
             }
         });
