@@ -144,12 +144,21 @@ class SettingsModule {
       if (k && k.startsWith('vn_')) data[k] = localStorage.getItem(k);
     }
     const payload = { app: 'vietnamese-learning', version: 1, exportedAt: new Date().toISOString(), data };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    const json = JSON.stringify(payload, null, 2);
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const filename = `vietnamese-backup-${stamp}.json`;
+
+    // Android WebView ignores <a download>; route through the native "Save As"
+    // dialog (SAF) so the file lands somewhere that survives app updates.
+    if (window.AndroidBackup && typeof window.AndroidBackup.export === 'function') {
+      try { window.AndroidBackup.export(filename, json); return; } catch {}
+    }
+
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `vietnamese-backup-${stamp}.json`;
+    a.href = url; a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   }

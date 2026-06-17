@@ -17,9 +17,12 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import androidx.webkit.WebViewAssetLoader;
 
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 /**
@@ -33,9 +36,11 @@ import java.util.Locale;
 public class MainActivity extends Activity {
 
     private static final int FILE_CHOOSER_REQUEST = 1001;
+    private static final int BACKUP_SAVE_REQUEST = 1002;
 
     private WebView web;
     private ValueCallback<Uri[]> filePathCallback;
+    private String pendingBackupJson;
 
     private TextToSpeech tts;
     private volatile boolean ttsLangOk = false;
@@ -132,6 +137,7 @@ public class MainActivity extends Activity {
             }
         });
         web.addJavascriptInterface(new TtsBridge(), "AndroidTTS");
+        web.addJavascriptInterface(new BackupBridge(), "AndroidBackup");
 
         web.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
     }
@@ -144,6 +150,19 @@ public class MainActivity extends Activity {
             filePathCallback.onReceiveValue(
                     WebChromeClient.FileChooserParams.parseResult(resultCode, data));
             filePathCallback = null;
+            return;
+        }
+        if (requestCode == BACKUP_SAVE_REQUEST) {
+            String json = pendingBackupJson;
+            pendingBackupJson = null;
+            if (resultCode == RESULT_OK && data != null && data.getData() != null && json != null) {
+                try (OutputStream os = getContentResolver().openOutputStream(data.getData())) {
+                    os.write(json.getBytes(StandardCharsets.UTF_8));
+                    Toast.makeText(this, "Backup saved", Toast.LENGTH_SHORT).show();
+                } catch (Exception e) {
+                    Toast.makeText(this, "Backup failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            }
         }
     }
 
@@ -192,6 +211,28 @@ public class MainActivity extends Activity {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     startActivity(intent);
                 } catch (Exception ignored) {
+                }
+            });
+        }
+    }
+
+    /** Bridge for exporting a backup file via the system "Save As" dialog (SAF).
+     *  Files saved this way (e.g. to Downloads) survive app uninstall/update. */
+    private class BackupBridge {
+        @JavascriptInterface
+        public void export(final String filename, final String content) {
+            pendingBackupJson = content;
+            runOnUiThread(() -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType("application/json");
+                    intent.putExtra(Intent.EXTRA_TITLE,
+                            filename != null ? filename : "vietnamese-backup.json");
+                    startActivityForResult(intent, BACKUP_SAVE_REQUEST);
+                } catch (Exception e) {
+                    pendingBackupJson = null;
+                    Toast.makeText(MainActivity.this, "Couldn't open the save dialog", Toast.LENGTH_LONG).show();
                 }
             });
         }
