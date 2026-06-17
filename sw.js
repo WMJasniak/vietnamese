@@ -6,7 +6,7 @@
 // else works offline.
 //
 // Bump CACHE whenever app files change so clients pull the new version.
-const CACHE = 'tiengviet-v1';
+const CACHE = 'tiengviet-v2';
 
 const ASSETS = [
   './',

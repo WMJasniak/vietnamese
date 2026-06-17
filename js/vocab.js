@@ -70,9 +70,20 @@ let _ttsAudio = null;
 
 function speakVi(text) {
   if (!text) return;
+  // 1) Native Android TTS bridge (the .apk wrapper) — works offline, best on phone.
+  if (window.AndroidTTS && typeof window.AndroidTTS.canSpeak === 'function') {
+    try {
+      if (window.AndroidTTS.canSpeak()) { window.AndroidTTS.speak(String(text)); return; }
+    } catch {}
+    // Bridge present but no Vietnamese voice installed → try online, then guide install.
+    _speakViNet(text);
+    return;
+  }
+  // 2) Browser SpeechSynthesis with a local vi voice (desktop / Chrome Android).
   if (window.speechSynthesis && _viVoices().length) {
     _speakViLocal(text);
   } else {
+    // 3) Online Google TTS fallback.
     _speakViNet(text);
   }
 }
@@ -105,18 +116,44 @@ function _speakViNet(text) {
 function _showNoVoiceNotice() {
   if (sessionStorage.getItem('vn_voice_notice_dismissed')) return;
   if (document.getElementById('vn-voice-notice')) return;
+
+  const ua = navigator.userAgent || '';
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const hasBridge = !!(window.AndroidTTS && typeof window.AndroidTTS.installData === 'function');
+
+  let instructions;
+  if (isAndroid) {
+    instructions = `
+      <ul class="voice-notice-list">
+        <li>Open <strong>Settings</strong> → search <strong>"Text-to-speech"</strong> (often under <em>General management</em> or <em>Accessibility</em>).</li>
+        <li>Set the engine to <strong>Google Text-to-speech</strong>, tap its ⚙, then <strong>Install voice data → Vietnamese</strong>.</li>
+        <li>Reopen the app.</li>
+      </ul>
+      ${hasBridge ? `<button class="btn" id="vn-voice-install" type="button">Open voice-install screen</button>` : ''}`;
+  } else if (isIOS) {
+    instructions = `
+      <ul class="voice-notice-list">
+        <li><strong>Settings → Accessibility → Spoken Content → Voices → Add New Voice → Vietnamese.</strong></li>
+        <li>Reopen this page.</li>
+      </ul>`;
+  } else {
+    instructions = `
+      <ul class="voice-notice-list">
+        <li><strong>Windows:</strong> Settings → Time &amp; Language → Speech → Add voices → search "Vietnamese" → install. Restart the browser.</li>
+        <li><strong>macOS:</strong> System Settings → Accessibility → Spoken Content → System Voice → Manage Voices → check Vietnamese.</li>
+        <li><strong>Linux:</strong> install <code>espeak-ng</code> and a Vietnamese voice for speech-dispatcher.</li>
+      </ul>`;
+  }
+
   const el = document.createElement('div');
   el.id = 'vn-voice-notice';
   el.className = 'voice-notice';
   el.innerHTML = `
     <div class="voice-notice-body">
-      <strong>No Vietnamese voice installed.</strong>
-      To hear Vietnamese pronunciation, install a vi-VN voice in your OS:
-      <ul class="voice-notice-list">
-        <li><strong>Windows:</strong> Settings → Time &amp; Language → Speech → Add voices → search "Vietnamese" → install. Restart the browser.</li>
-        <li><strong>macOS:</strong> System Settings → Accessibility → Spoken Content → System Voice → Manage Voices → check Vietnamese (Linh / Lan).</li>
-        <li><strong>Linux:</strong> install <code>espeak-ng</code> and a Vietnamese voice for speech-dispatcher.</li>
-      </ul>
+      <strong>No Vietnamese voice available.</strong>
+      To hear pronunciation offline, install a Vietnamese text-to-speech voice:
+      ${instructions}
     </div>
     <button class="voice-notice-close" type="button" aria-label="Dismiss">✕</button>
   `;
@@ -124,6 +161,10 @@ function _showNoVoiceNotice() {
   el.querySelector('.voice-notice-close').addEventListener('click', () => {
     sessionStorage.setItem('vn_voice_notice_dismissed', '1');
     el.remove();
+  });
+  const installBtn = el.querySelector('#vn-voice-install');
+  if (installBtn) installBtn.addEventListener('click', () => {
+    try { window.AndroidTTS.installData(); } catch {}
   });
 }
 
