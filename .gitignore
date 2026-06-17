@@ -7,3 +7,15 @@ Thumbs.db
 
 # Local server logs (not part of the app)
 *.log
+
+# Android build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+*.iml
+# Web app is copied here by CI at build time — not source
+android/app/src/main/assets/www/
+# Built APK
+tiengviet.apk

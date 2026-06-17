@@ -1,0 +1,71 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/**'
+      - 'index.html'
+      - 'css/**'
+      - 'js/**'
+      - 'data/**'
+      - 'icons/**'
+      - 'manifest.webmanifest'
+      - 'sw.js'
+      - 'apple-touch-icon.png'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to publish the APK as a release asset
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Bundle web app into the APK assets
+        run: |
+          mkdir -p android/app/src/main/assets/www
+          cp -r index.html css js data icons manifest.webmanifest sw.js apple-touch-icon.png \
+            android/app/src/main/assets/www/
+          echo "Bundled files:"; ls android/app/src/main/assets/www
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk tiengviet.apk
+
+      - name: Upload as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiengviet-apk
+          path: tiengviet.apk
+
+      - name: Publish to a Release (direct download link)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: Android APK (latest)
+          body: |
+            Latest debug-signed APK of the Tiếng Việt app.
+            Install on Android: download `tiengviet.apk`, open it, and allow
+            installing from this source if prompted.
+          files: tiengviet.apk
