@@ -66,6 +66,8 @@ git push -u origin main
   (hỏi / ngã / nặng) come up more often.
 - **Cloze** — fill-in-the-blank from real sentences. Reviews words you've
   already seen, in context; productive answers feed the SRS.
+- **Grammar** — beginner grammar points taught through real example sentences,
+  drilled as cloze and scheduled by the same FSRS spaced-repetition engine.
 - **Listening** — dictation: hear a word, type what you hear (Telex supported).
 - **Vocabulary** — the core flashcard trainer. Two independent card directions
   per word:

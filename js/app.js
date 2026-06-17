@@ -1,6 +1,6 @@
 // Vietnamese app — tab routing + module init. Mirrors the Mandarin app's
 // shape but with a leaner feature set (Plan / Vocab / Reader / Stats / Settings).
-const LEARNING_TABS = new Set(['vocab', 'reader', 'tones', 'basics', 'cloze', 'listening']);
+const LEARNING_TABS = new Set(['vocab', 'reader', 'tones', 'basics', 'cloze', 'grammar', 'listening']);
 
 // Tab metadata for the mobile bottom navigation. `core` items sit in the bar;
 // the rest live behind the "More" button.
@@ -10,6 +10,7 @@ const TAB_NAV = [
   { id: 'tones',     icon: '🎵', label: 'Tones',  core: true },
   { id: 'cloze',     icon: '✏️', label: 'Cloze',  core: true },
   { id: 'listening', icon: '🎧', label: 'Listen', core: true },
+  { id: 'grammar',   icon: '📐', label: 'Grammar', core: false },
   { id: 'basics',    icon: '🔤', label: 'Basics', core: false },
   { id: 'reader',    icon: '📚', label: 'Reader', core: false },
   { id: 'stats',     icon: '📊', label: 'Stats',  core: false },
@@ -31,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let basicsModule = null;
   let tonesModule = null;
   let clozeModule = null;
+  let grammarModule = null;
   let listeningModule = null;
 
   tabBtns.forEach(btn => {
@@ -50,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (entering === 'basics'   && basicsModule)   basicsModule.activate();
       if (entering === 'tones'    && tonesModule)    tonesModule.activate();
       if (entering === 'cloze'    && clozeModule)    clozeModule.activate();
+      if (entering === 'grammar'  && grammarModule)  grammarModule.activate();
       if (entering === 'listening'&& listeningModule)listeningModule.activate();
 
       updateBottomNavActive(entering);
@@ -85,6 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const clozePanel = document.getElementById('tab-cloze');
   if (clozePanel) clozeModule = new ClozeModule(clozePanel);
+
+  const grammarPanel = document.getElementById('tab-grammar');
+  if (grammarPanel) grammarModule = new GrammarModule(grammarPanel);
 
   const listeningPanel = document.getElementById('tab-listening');
   if (listeningPanel) listeningModule = new ListeningModule(listeningPanel);

@@ -1808,6 +1808,18 @@ main {
 .ls-reveal { min-height: 1.5rem; text-align: center; }
 .ls-reveal-word { font-size: 1.6rem; font-weight: 700; }
 
+/* ── Grammar tab ──────────────────────────────────── */
+.gr-rule {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 0.7rem;
+}
+.gr-rule.hidden { display: none; }
+.gr-title { font-weight: 700; font-size: 0.95rem; color: var(--accent); margin-bottom: 0.25rem; }
+.gr-explain { font-size: 0.85rem; line-height: 1.5; color: var(--text); }
+
 /* ══ Mobile polish ══════════════════════════════════ */
 
 /* Prevent accidental pull-to-refresh / scroll chaining (esp. in the WebView). */

@@ -1,6 +1,6 @@
 // Guided study session: ordered segments with per-segment countdowns.
 // Auto-switches tabs and prompts when each segment's time elapses.
-const PLAN_KEY = 'vn_plan_v2';  // bumped: v1 was a single Vocab segment
+const PLAN_KEY = 'vn_plan_v3';  // v1: single Vocab; v2: interleaved; v3: + Grammar
 
 // Default plan — interleaved, evidence-based (see README "Research basis").
 // Rationale:
@@ -14,14 +14,15 @@ const PLAN_KEY = 'vn_plan_v2';  // bumped: v1 was a single Vocab segment
 // premature for a true beginner. The Reader tab is still there to add manually
 // once you have a base. Totals 30 min; SettingsModule rescales to the goal.
 const DEFAULT_PLAN = [
-  { tab: 'tones',     minutes: 5,  label: 'Tone training' },
-  { tab: 'vocab',     minutes: 12, label: 'Vocabulary (SRS)' },
-  { tab: 'cloze',     minutes: 8,  label: 'Sentences (cloze)' },
-  { tab: 'listening', minutes: 5,  label: 'Listening / dictation' },
+  { tab: 'tones',     minutes: 4,  label: 'Tone training' },
+  { tab: 'vocab',     minutes: 10, label: 'Vocabulary (SRS)' },
+  { tab: 'grammar',   minutes: 5,  label: 'Grammar (SRS)' },
+  { tab: 'cloze',     minutes: 7,  label: 'Sentences (cloze)' },
+  { tab: 'listening', minutes: 4,  label: 'Listening / dictation' },
 ];
 
 const TAB_LABEL = {
-  basics: 'Basics', vocab: 'Vocabulary', tones: 'Tone training',
+  basics: 'Basics', vocab: 'Vocabulary', tones: 'Tone training', grammar: 'Grammar (SRS)',
   cloze: 'Sentences (cloze)', listening: 'Listening / dictation', reader: 'Reader',
 };
 
