@@ -315,8 +315,15 @@ class GrammarModule {
       <div class="fb-verdict">${correct ? '✓ Correct!' : '✗ Incorrect'}</div>
       ${(!correct && typed) ? `<div class="fb-typed">You typed: <em>${esc(typed)}</em></div>` : ''}
       <div class="fb-word"><div class="fb-chars">${esc(ex.blank)}</div></div>
-      <div class="fb-ex"><div class="fb-ex-zh">${full}</div><div class="fb-ex-en">${esc(ex.en || '')}</div></div>
+      <div class="fb-ex">
+        <div class="fb-ex-zh">${full} <button class="zh-speak gr-speak" id="gr-speak" type="button" aria-label="Listen" title="Listen">🔊</button></div>
+        <div class="fb-ex-en">${esc(ex.en || '')}</div>
+      </div>
     `;
+    // Hear the whole example sentence; also auto-play it once on reveal.
+    this.el.feedback.querySelector('#gr-speak')?.addEventListener('click', () => speakVi(ex.vi));
+    if (typeof speakVi === 'function') speakVi(ex.vi);
+
     this.el.check.disabled = true;
     this.el.input.disabled = true;
     this.el.dontknow.classList.add('hidden');
