@@ -4,7 +4,7 @@ import quickjs
 import pathlib
 ROOT = str(pathlib.Path(__file__).resolve().parent.parent)
 FILES = ["js/data.js","js/sentences.js","js/srs.js","js/telex.js","js/vocab.js",
-         "js/tones.js","js/cloze.js","js/grammar.js"]
+         "js/tones.js","js/cloze.js","js/grammar.js","js/plan.js"]
 
 PREAMBLE = r"""
 var __ls={}; var localStorage={ getItem:function(k){return (k in __ls)?__ls[k]:null;},
@@ -139,6 +139,20 @@ function firstAfterOverride(word){ var w=byw[word]; if(!w) return null; var pm=P
   if(!pm) return w.meanings[0]; var rest=w.meanings.filter(function(m){return m.trim().toLowerCase()!==pm.toLowerCase();}); return [pm].concat(rest)[0]; }
 T('override tôi -> I, me', firstAfterOverride('tôi')==='I, me', firstAfterOverride('tôi'));
 T('override là -> to be', firstAfterOverride('là')==='to be', firstAfterOverride('là'));
+
+// ---- Plan (stage-aware, scaling) ----
+var basePlan=[{tab:'a',minutes:4},{tab:'b',minutes:10},{tab:'c',minutes:5},{tab:'d',minutes:7},{tab:'e',minutes:4}];
+T('scalePlan sums to 30', _scalePlan(basePlan,30).reduce(function(a,s){return a+s.minutes;},0)===30);
+T('scalePlan sums to 45', _scalePlan(basePlan,45).reduce(function(a,s){return a+s.minutes;},0)===45);
+T('scalePlan sums to 20', _scalePlan(basePlan,20).reduce(function(a,s){return a+s.minutes;},0)===20);
+T('scalePlan keeps zeroed segments', _scalePlan([{tab:'a',minutes:0},{tab:'b',minutes:10}],30).filter(function(s){return s.minutes===0;}).length===1);
+var stg=_stagePlan();
+T('stagePlan well-formed', Array.isArray(stg)&&stg.length>0&&stg.every(function(s){return s.tab&&s.minutes>0&&s.label;}));
+T('stagePlan base sums 30', stg.reduce(function(a,s){return a+s.minutes;},0)===30);
+var op=optimalPlan(); var goal=getSettings().dailyGoalMins||30;
+T('optimalPlan sums to daily goal', op.reduce(function(a,s){return a+s.minutes;},0)===goal, 'goal='+goal+' got='+op.reduce(function(a,s){return a+s.minutes;},0));
+var VALID={tones:1,vocab:1,grammar:1,cloze:1,listening:1,reader:1,basics:1};
+T('optimalPlan tabs all valid', op.every(function(s){return VALID[s.tab];}));
 
 JSON.stringify(RESULTS);
 """

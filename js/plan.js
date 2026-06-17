@@ -2,24 +2,71 @@
 // Auto-switches tabs and prompts when each segment's time elapses.
 const PLAN_KEY = 'vn_plan_v3';  // v1: single Vocab; v2: interleaved; v3: + Grammar
 
-// Default plan — interleaved, evidence-based (see README "Research basis").
-// Rationale:
-//   - Tones first: hardest part for learners; a short blocked perceptual-training
-//     warm-up (HVPT-style) before the ear tires.
-//   - Vocabulary SRS: the core, highest-leverage retrieval block.
-//   - Cloze + Listening: productive retrieval *in context* and dictation
-//     (listening + output) — interleaving modalities aids retention.
-// Reading (extensive input) is intentionally NOT in the default: it only pays
-// off once you understand ~95-98% of the words (~a couple thousand), so it's
-// premature for a true beginner. The Reader tab is still there to add manually
-// once you have a base. Totals 30 min; SettingsModule rescales to the goal.
-const DEFAULT_PLAN = [
-  { tab: 'tones',     minutes: 4,  label: 'Tone training' },
-  { tab: 'vocab',     minutes: 10, label: 'Vocabulary (SRS)' },
-  { tab: 'grammar',   minutes: 5,  label: 'Grammar (SRS)' },
-  { tab: 'cloze',     minutes: 7,  label: 'Sentences (cloze)' },
-  { tab: 'listening', minutes: 4,  label: 'Listening / dictation' },
-];
+// Default plan — interleaved, evidence-based, and STAGE-AWARE. The mix shifts
+// with how many words you know, because some drills have nothing to do early on:
+//   - Foundation (<30 words known): heavy tones + vocabulary; no cloze yet
+//     (cloze reviews words you've already learned — empty at the start) and no
+//     reading (extensive input only pays off near ~95-98% coverage).
+//   - Building (<300): introduce cloze; balanced interleaving of modalities.
+//   - Consolidating (300+): more cloze/listening and a little reading.
+// Rationale per block: tones first (hardest, HVPT warm-up); vocab SRS is the
+// highest-leverage retrieval; cloze + listening are productive in-context
+// retrieval and dictation. Base templates total 30 min and are scaled to the
+// user's daily goal.
+function _stagePlan() {
+  const known = (typeof getStats === 'function') ? (getStats().totalKnown || 0) : 0;
+  if (known < 30) return [            // Foundation
+    { tab: 'tones',     minutes: 7,  label: 'Tone training' },
+    { tab: 'vocab',     minutes: 16, label: 'Vocabulary (SRS)' },
+    { tab: 'grammar',   minutes: 4,  label: 'Grammar (SRS)' },
+    { tab: 'listening', minutes: 3,  label: 'Listening / dictation' },
+  ];
+  if (known < 300) return [           // Building
+    { tab: 'tones',     minutes: 5,  label: 'Tone training' },
+    { tab: 'vocab',     minutes: 11, label: 'Vocabulary (SRS)' },
+    { tab: 'grammar',   minutes: 4,  label: 'Grammar (SRS)' },
+    { tab: 'cloze',     minutes: 6,  label: 'Sentences (cloze)' },
+    { tab: 'listening', minutes: 4,  label: 'Listening / dictation' },
+  ];
+  return [                            // Consolidating
+    { tab: 'tones',     minutes: 3,  label: 'Tone training' },
+    { tab: 'vocab',     minutes: 9,  label: 'Vocabulary (SRS)' },
+    { tab: 'grammar',   minutes: 4,  label: 'Grammar (SRS)' },
+    { tab: 'cloze',     minutes: 7,  label: 'Sentences (cloze)' },
+    { tab: 'listening', minutes: 4,  label: 'Listening / dictation' },
+    { tab: 'reader',    minutes: 3,  label: 'Reading' },
+  ];
+}
+
+// Scale a plan's minutes proportionally so they sum to `target` (preserving any
+// zeroed-out segments; non-zero segments stay >= 1; rounding drift goes to the
+// largest segment so the total is exact).
+function _scalePlan(plan, target) {
+  target = Math.max(1, Math.round(Number(target) || 0));
+  const list = plan.map(s => ({ ...s }));
+  const total = list.reduce((a, s) => a + (Number(s.minutes) || 0), 0);
+  if (total <= 0) return list;
+  const scale = target / total;
+  let acc = 0;
+  list.forEach(s => {
+    const o = Number(s.minutes) || 0;
+    s.minutes = o > 0 ? Math.max(1, Math.round(o * scale)) : 0;
+    acc += s.minutes;
+  });
+  const delta = target - acc;
+  if (delta !== 0) {
+    let idx = 0;
+    list.forEach((s, i) => { if (s.minutes > list[idx].minutes) idx = i; });
+    list[idx].minutes = Math.max(1, list[idx].minutes + delta);
+  }
+  return list;
+}
+
+// The default plan: the stage-appropriate template scaled to the daily goal.
+function optimalPlan() {
+  const goal = (typeof getSettings === 'function') ? (getSettings().dailyGoalMins || 30) : 30;
+  return _scalePlan(_stagePlan(), goal);
+}
 
 const TAB_LABEL = {
   basics: 'Basics', vocab: 'Vocabulary', tones: 'Tone training', grammar: 'Grammar (SRS)',
@@ -50,7 +97,7 @@ class PlanModule {
       const raw = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
       if (Array.isArray(raw) && raw.length) return raw;
     } catch {}
-    return DEFAULT_PLAN.map(s => ({ ...s }));
+    return optimalPlan();
   }
 
   _savePlan(plan) {
@@ -115,12 +162,13 @@ class PlanModule {
           <ol class="plan-list plan-list--edit" id="plan-list"></ol>
           <div class="plan-setup-actions">
             <button class="btn" id="plan-start">▶ Start session</button>
-            <button class="btn-ghost" id="plan-reset">Reset to default</button>
+            <button class="btn-ghost" id="plan-reset">Reset to optimal</button>
           </div>
           <p class="plan-note">
-            An evidence-based beginner mix: tone training, vocabulary SRS, in-context
-            cloze, dictation, and a little reading. Edit the minutes per segment as you
-            like; your changes are saved locally.
+            Auto-tuned to your level: more tones &amp; vocabulary now, with cloze,
+            listening and reading growing as you learn. Edit the minutes per segment
+            anytime (saved locally), or tap “Reset to optimal” to retune for your
+            current level.
           </p>
         </section>
       `;
@@ -276,30 +324,12 @@ function _fmtMS(sec) {
 // `targetMinutes`. Called from SettingsModule when the daily goal changes, so
 // the Plan stays in sync with the user's intended study time.
 function rescalePlanToMinutes(targetMinutes) {
-  const target = Math.max(1, Math.round(Number(targetMinutes) || 0));
-  let plan;
+  let base = null;
   try {
     const raw = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
-    plan = Array.isArray(raw) && raw.length ? raw : DEFAULT_PLAN.map(s => ({ ...s }));
-  } catch {
-    plan = DEFAULT_PLAN.map(s => ({ ...s }));
-  }
-  const total = plan.reduce((a, s) => a + (Number(s.minutes) || 0), 0);
-  if (total <= 0) return;
-  const scale = target / total;
-  let acc = 0;
-  plan.forEach(s => {
-    const original = Number(s.minutes) || 0;
-    // Preserve zeroed-out segments; round non-zero up to at least 1
-    s.minutes = original > 0 ? Math.max(1, Math.round(original * scale)) : 0;
-    acc += s.minutes;
-  });
-  // Absorb rounding drift into the largest segment so the sum is exact
-  const delta = target - acc;
-  if (delta !== 0) {
-    let idx = 0;
-    plan.forEach((s, i) => { if (s.minutes > plan[idx].minutes) idx = i; });
-    plan[idx].minutes = Math.max(1, plan[idx].minutes + delta);
-  }
-  try { localStorage.setItem(PLAN_KEY, JSON.stringify(plan)); } catch {}
+    if (Array.isArray(raw) && raw.length) base = raw;
+  } catch {}
+  if (!base) base = _stagePlan();
+  const scaled = _scalePlan(base, targetMinutes);
+  try { localStorage.setItem(PLAN_KEY, JSON.stringify(scaled)); } catch {}
 }
