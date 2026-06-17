@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Tiếng Việt · Vietnamese Learning</title>
+
+  <!-- PWA: installable, offline-capable -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0d1117">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tiếng Việt">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <div class="app-title">Tiếng Việt</div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="plan">Plan</button>
+      <button class="tab-btn" data-tab="basics">Basics</button>
+      <button class="tab-btn" data-tab="vocab">Vocabulary</button>
+      <button class="tab-btn" data-tab="tones">Tones</button>
+      <button class="tab-btn" data-tab="cloze">Cloze</button>
+      <button class="tab-btn" data-tab="listening">Listening</button>
+      <button class="tab-btn" data-tab="reader">Reader</button>
+      <button class="tab-btn" data-tab="stats">Stats</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <div id="tab-plan" class="tab-panel active"><!-- PlanModule --></div>
+    <div id="tab-basics" class="tab-panel"><!-- BasicsModule --></div>
+    <div id="tab-vocab" class="tab-panel"><!-- VocabModule --></div>
+    <div id="tab-tones" class="tab-panel"><!-- TonesModule --></div>
+    <div id="tab-cloze" class="tab-panel"><!-- ClozeModule --></div>
+    <div id="tab-listening" class="tab-panel"><!-- ListeningModule --></div>
+    <div id="tab-reader" class="tab-panel"><!-- ReaderModule --></div>
+    <div id="tab-stats" class="tab-panel"><!-- StatsModule --></div>
+    <div id="tab-settings" class="tab-panel"><!-- SettingsModule --></div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/sentences.js"></script>
+  <script src="js/srs.js"></script>
+  <script src="js/telex.js"></script>
+  <script src="js/vocab.js"></script>
+  <script src="js/basics.js"></script>
+  <script src="js/tones.js"></script>
+  <script src="js/cloze.js"></script>
+  <script src="js/listening.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/reader.js"></script>
+  <script src="js/plan.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- Register the service worker (relative path so it works under a GitHub
+       Pages subpath like /Vietnamese/). Safe to fail silently on http/file. -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
