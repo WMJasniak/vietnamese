@@ -11,7 +11,8 @@ android {
         minSdk 23
         targetSdk 34
         // Auto-incremented in CI (github.run_number) so updates always install over.
-        versionCode (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
+        def vc = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
+        versionCode vc
         versionName '1.0'
     }
 
