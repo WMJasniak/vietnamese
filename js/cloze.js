@@ -50,7 +50,7 @@ class ClozeModule {
         <div class="cz-en" id="cz-en"></div>
         <div class="cz-sentence" id="cz-sentence"></div>
         <div class="card-input-row">
-          <input id="cz-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type the missing word… (Telex: as→á)">
+          <input id="cz-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Type the missing word… (Telex: as→á)">
           <button class="btn" id="cz-check">Check</button>
         </div>
         <div id="cz-feedback" class="feedback hidden"></div>

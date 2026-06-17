@@ -43,7 +43,7 @@ class ListeningModule {
           <div class="ls-reveal" id="ls-reveal"></div>
         </div>
         <div class="card-input-row">
-          <input id="ls-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type the Vietnamese word… (Telex: as→á)">
+          <input id="ls-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Type the Vietnamese word… (Telex: as→á)">
           <button class="btn" id="ls-check">Check</button>
         </div>
         <div id="ls-feedback" class="feedback hidden"></div>

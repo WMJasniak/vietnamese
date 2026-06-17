@@ -1807,3 +1807,91 @@ main {
 /* ── Listening tab ────────────────────────────────── */
 .ls-reveal { min-height: 1.5rem; text-align: center; }
 .ls-reveal-word { font-size: 1.6rem; font-weight: 700; }
+
+/* ══ Mobile polish ══════════════════════════════════ */
+
+/* Prevent accidental pull-to-refresh / scroll chaining (esp. in the WebView). */
+html { overscroll-behavior-y: none; }
+
+/* A little depth so cards/sections read as surfaces, not flat boxes. */
+.card, .stats-section { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28); }
+/* Tactile press feedback on buttons everywhere. */
+.btn:active, .btn-ghost:active, .btn-next:active { transform: translateY(1px); }
+
+/* ── Bottom navigation (mobile only) ─────────────── */
+.bottom-nav { display: none; }
+
+@media (max-width: 480px) {
+  /* Replace the top tab strip with a thumb-reachable bottom bar. */
+  body > header .tabs { display: none; }
+  body { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 200;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3);
+  }
+  .bn-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 7px 2px 6px;
+    min-height: 54px;
+    background: none;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s;
+  }
+  .bn-ic { font-size: 1.2rem; line-height: 1; }
+  .bn-lbl { font-size: 0.6rem; letter-spacing: 0.01em; }
+  .bn-active { color: var(--accent); }
+
+  .bn-sheet {
+    display: none;
+    position: absolute;
+    right: 6px;
+    bottom: calc(100% + 6px);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 8px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  }
+  .bottom-nav.more-open .bn-sheet { display: grid; }
+  .bn-sheet .bn-btn {
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 11px 14px;
+    min-width: 124px;
+    border-radius: 10px;
+  }
+  .bn-sheet .bn-btn .bn-lbl { font-size: 0.82rem; }
+
+  /* Bigger, comfier touch targets. */
+  .t-choice { padding: 0.95rem 0.4rem; }
+  .t-play, .zh-speak { min-width: 48px; min-height: 48px; }
+  .btn, .btn-ghost, .btn-next { min-height: 46px; }
+
+  /* Keep the no-voice banner clear of the bottom bar. */
+  .voice-notice {
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    left: 1rem;
+    right: 1rem;
+    max-width: none;
+  }
+}

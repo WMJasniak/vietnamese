@@ -193,7 +193,7 @@ class VocabModule {
           <div class="card-prompt" id="v-prompt"></div>
           <div class="card-hint" id="v-hint"></div>
           <div class="card-input-row">
-            <input id="v-input" type="text" autocomplete="off" spellcheck="false" placeholder="Your answer…">
+            <input id="v-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Your answer…">
             <button class="btn" id="v-check">Check</button>
           </div>
           <div id="v-feedback" class="feedback hidden"></div>

@@ -2,6 +2,20 @@
 // shape but with a leaner feature set (Plan / Vocab / Reader / Stats / Settings).
 const LEARNING_TABS = new Set(['vocab', 'reader', 'tones', 'basics', 'cloze', 'listening']);
 
+// Tab metadata for the mobile bottom navigation. `core` items sit in the bar;
+// the rest live behind the "More" button.
+const TAB_NAV = [
+  { id: 'plan',      icon: '🗓️', label: 'Plan',   core: true },
+  { id: 'vocab',     icon: '🃏', label: 'Vocab',  core: true },
+  { id: 'tones',     icon: '🎵', label: 'Tones',  core: true },
+  { id: 'cloze',     icon: '✏️', label: 'Cloze',  core: true },
+  { id: 'listening', icon: '🎧', label: 'Listen', core: true },
+  { id: 'basics',    icon: '🔤', label: 'Basics', core: false },
+  { id: 'reader',    icon: '📚', label: 'Reader', core: false },
+  { id: 'stats',     icon: '📊', label: 'Stats',  core: false },
+  { id: 'settings',  icon: '⚙️', label: 'Settings', core: false },
+];
+
 document.addEventListener('DOMContentLoaded', () => {
   const tabBtns   = document.querySelectorAll('.tab-btn');
   const tabPanels = document.querySelectorAll('.tab-panel');
@@ -37,6 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (entering === 'tones'    && tonesModule)    tonesModule.activate();
       if (entering === 'cloze'    && clozeModule)    clozeModule.activate();
       if (entering === 'listening'&& listeningModule)listeningModule.activate();
+
+      updateBottomNavActive(entering);
     });
   });
 
@@ -76,6 +92,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const settingsPanel = document.getElementById('tab-settings');
   if (settingsPanel) new SettingsModule(settingsPanel);
 
+  buildBottomNav();
+  updateBottomNavActive('plan');
+
+  // Keep the focused answer field visible above the on-screen keyboard.
+  document.addEventListener('focusin', e => {
+    const el = e.target;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+      setTimeout(() => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {} }, 300);
+    }
+  });
+
+  // Swipe left to advance to the next card (when a Next button is showing).
+  let _sx = 0, _sy = 0, _st = 0;
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    _sx = e.touches[0].clientX; _sy = e.touches[0].clientY; _st = Date.now();
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - _sx, dy = t.clientY - _sy;
+    if (Date.now() - _st > 600) return;
+    if (dx > -60 || Math.abs(dy) > 45) return; // require a clean leftward swipe
+    const next = document.querySelector('.tab-panel.active .btn-next:not(.hidden)');
+    if (next) next.click();
+  }, { passive: true });
+
   ['click', 'keydown', 'pointerdown'].forEach(ev =>
     document.addEventListener(ev, () => {
       const active = document.querySelector('.tab-btn.active')?.dataset.tab;
@@ -96,6 +138,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (checkGoal()) showToast('Daily goal reached!');
   }, 15000);
 });
+
+// ── Mobile bottom navigation ───────────────────────────
+// Thumb-reachable bar (shown only on narrow screens via CSS). Core tabs are
+// always visible; the rest open from a "More" sheet. Buttons drive the existing
+// switchTab(), so all tab logic stays in one place.
+function buildBottomNav() {
+  if (document.querySelector('.bottom-nav')) return;
+  const btn = t => `<button class="bn-btn" data-tab="${t.id}" type="button">
+      <span class="bn-ic">${t.icon}</span><span class="bn-lbl">${t.label}</span></button>`;
+  const nav = document.createElement('nav');
+  nav.className = 'bottom-nav';
+  nav.innerHTML =
+    TAB_NAV.filter(t => t.core).map(btn).join('') +
+    `<button class="bn-btn bn-more-btn" type="button"><span class="bn-ic">☰</span><span class="bn-lbl">More</span></button>` +
+    `<div class="bn-sheet">${TAB_NAV.filter(t => !t.core).map(btn).join('')}</div>`;
+  document.body.appendChild(nav);
+
+  nav.querySelectorAll('.bn-btn[data-tab]').forEach(b =>
+    b.addEventListener('click', () => { switchTab(b.dataset.tab); nav.classList.remove('more-open'); }));
+  nav.querySelector('.bn-more-btn').addEventListener('click', e => {
+    e.stopPropagation(); nav.classList.toggle('more-open');
+  });
+  document.addEventListener('click', e => { if (!nav.contains(e.target)) nav.classList.remove('more-open'); });
+}
+
+function updateBottomNavActive(tab) {
+  document.querySelectorAll('.bottom-nav .bn-btn[data-tab]')
+    .forEach(b => b.classList.toggle('bn-active', b.dataset.tab === tab));
+}
 
 function showToast(msg) {
   const el = document.createElement('div');
