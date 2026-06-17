@@ -1,7 +1,12 @@
 // Vietnamese vocabulary data — bundled locally as data/vocab.json.
-// Derived from Tatoeba VN-EN sentence-corpus word frequency + Wiktionary glosses
-// (CC BY-SA 3.0). CEFR levels are a frequency-rank heuristic (top 1000 ≈ A1,
-// 1001-2000 ≈ A2, 2001-3500 ≈ B1, 3501-5000 ≈ B2), not an official mapping.
+// Word list + frequency: Tatoeba VN-EN sentence corpus. Glosses: rebuilt from
+// kaikki.org / Wiktextract (structured Wiktionary, CC BY-SA) — deduped, with
+// inflection/alt-form senses dropped and senses Wiktionary tags as
+// obsolete/archaic/dated/historical moved to the end. The PRIMARY_MEANING map
+// below then floats the learner-relevant sense to the front for common words
+// (Wiktionary leaves some old senses, e.g. tôi="servant", untagged).
+// CEFR levels are a frequency-rank heuristic (top 1000 ≈ A1, 1001-2000 ≈ A2,
+// 2001-3500 ≈ B1, 3501-5000 ≈ B2), not an official mapping.
 const DATA_URL = 'data/vocab.json';
 
 // The bundled glosses come from Wiktionary in etymological order, so some very

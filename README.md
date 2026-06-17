@@ -138,8 +138,12 @@ you've pasted jump the line.
 
 ### Data
 
-`data/vocab.json` is frequency-ranked Vietnamese words with Wiktionary glosses
-(CC BY-SA 3.0); `data/sentences.json` is Tatoeba VN–EN pairs (CC BY 2.0 FR).
+`data/vocab.json` is a frequency-ranked Vietnamese word list (Tatoeba corpus)
+with glosses rebuilt from [kaikki.org / Wiktextract](https://kaikki.org)
+(structured Wiktionary, CC BY-SA) — deduped, inflection senses removed, and
+archaic/obsolete senses pushed to the end; a curated `PRIMARY_MEANING` map in
+[js/data.js](js/data.js) floats the learner-relevant sense first for common
+words. `data/sentences.json` is Tatoeba VN–EN pairs (CC BY 2.0 FR).
 **CEFR levels are a frequency-rank heuristic** (top 1000 ≈ A1, 1001–2000 ≈ A2,
 2001–3500 ≈ B1, 3501–5000 ≈ B2), not an official mapping.
 
