@@ -118,16 +118,13 @@ class TonesModule {
       choices: this.container.querySelector('#t-choices'),
       next: this.container.querySelector('#t-next'),
     };
-    this.el.choices.innerHTML = TONE_DEFS.map(t => `
-      <button class="t-choice" type="button" data-tone="${t.id}">
-        <span class="t-choice-ex">${esc(t.ex)}</span>
-        <span class="t-choice-name">${esc(t.name)}</span>
-        <span class="t-choice-en">${esc(t.en)}</span>
-      </button>`).join('');
     this.el.play.addEventListener('click', () => { if (this.current) speakVi(this.current.word); });
     this.el.next.addEventListener('click', () => this._nextChoose());
-    this.el.choices.querySelectorAll('.t-choice').forEach(btn =>
-      btn.addEventListener('click', () => this._answerChoose(btn.dataset.tone)));
+    // Delegated handler so rebuilding the choices each question keeps it working.
+    this.el.choices.addEventListener('click', e => {
+      const btn = e.target.closest('.t-choice');
+      if (btn && !this.answered) this._answerChoose(btn.dataset.tone);
+    });
     this._refreshStats();
     this._nextChoose();
   }
@@ -147,15 +144,19 @@ class TonesModule {
   _nextChoose() {
     this.answered = false;
     this.current = this._pickWord();
+    // Rebuild the choices fresh each question — clean, enabled, nothing stuck.
+    this.el.choices.innerHTML = TONE_DEFS.map(t => `
+      <button class="t-choice" type="button" data-tone="${t.id}">
+        <span class="t-choice-ex">${esc(t.ex)}</span>
+        <span class="t-choice-name">${esc(t.name)}</span>
+        <span class="t-choice-en">${esc(t.en)}</span>
+      </button>`).join('');
     this.el.reveal.textContent = '';
     // Medium shows the bare syllable (tone stripped); hard shows nothing.
     this.el.prompt.textContent = (this.mode === 'medium' && typeof stripDiacritics === 'function')
       ? stripDiacritics(this.current.word) : '';
     this.el.feedback.className = 'feedback hidden';
     this.el.next.classList.add('hidden');
-    this.el.choices.querySelectorAll('.t-choice').forEach(b => {
-      b.classList.remove('t-correct', 't-wrong'); b.disabled = false;
-    });
     if (typeof speakVi === 'function') speakVi(this.current.word);
   }
 
@@ -188,7 +189,7 @@ class TonesModule {
     this.container.innerHTML = `
       <div class="stats-bar" id="t-stats"></div>
       <div class="card t-card">
-        <div class="card-meta"><span class="card-dir">Tap a syllable, then its tone</span></div>
+        <div class="card-meta"><span class="card-dir">Listen to each, then match it to its tone</span></div>
         <div class="t-match-chips" id="t-chips"></div>
         <div class="t-slots" id="t-slots"></div>
         <button class="btn btn-next hidden" id="t-next">Next set →</button>
@@ -213,8 +214,11 @@ class TonesModule {
     for (let i = forms.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [forms[i], forms[j]] = [forms[j], forms[i]]; }
 
     this.el.next.classList.add('hidden');
-    this.el.chips.innerHTML = forms.map(f =>
-      `<button class="t-chip" type="button" data-tone="${f.tone}" data-form="${esc(f.form)}">${esc(f.form)} 🔊</button>`).join('');
+    // Show the bare syllable (no tone mark) so you must match by EAR, not by
+    // reading the diacritic. The marked form is revealed in the slot on a match.
+    const bare = typeof stripDiacritics === 'function' ? stripDiacritics(forms[0].form) : forms[0].form;
+    this.el.chips.innerHTML = forms.map((f, i) =>
+      `<button class="t-chip" type="button" data-tone="${f.tone}" data-form="${esc(f.form)}">${esc(bare)} <span class="t-chip-n">${i + 1}</span> 🔊</button>`).join('');
     this.el.slots.innerHTML = TONE_DEFS.map(t =>
       `<button class="t-slot" type="button" data-tone="${t.id}">
          <span class="t-slot-name">${esc(t.name)}</span><span class="t-slot-en">${esc(t.en)}</span>

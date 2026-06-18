@@ -1812,6 +1812,7 @@ main {
 .t-chip:active { transform: scale(0.96); }
 .t-chip--sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--surface2)); }
 .t-chip--done { opacity: 0.25; pointer-events: none; }
+.t-chip-n { font-size: 0.7rem; color: var(--dim); font-weight: 400; }
 .t-chip.t-wrong { border-color: var(--incorrect); background: color-mix(in srgb, var(--incorrect) 22%, var(--surface2)); }
 
 .t-slots {
