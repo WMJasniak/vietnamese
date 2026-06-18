@@ -111,6 +111,16 @@ var words=[{id:'a',word:'a'},{id:'b',word:'b'},{id:'c',word:'c'}];
 var nc=getNewCards(words,10,true);
 T('getNewCards returns new', Array.isArray(nc) && nc.length>=1 && nc[0].direction==='vi-en', JSON.stringify(nc.length));
 T('getDueCards array', Array.isArray(getDueCards(words)));
+// en→vi promotions interleave once a word has been passed vi→en
+localStorage.clear();
+recordAnswer('a','vi-en',true);
+var nc2=getNewCards(words,10,true);
+T('getNewCards interleaves en→vi promotion', nc2.some(c=>c.direction==='en-vi'&&c.word.id==='a') && nc2.some(c=>c.direction==='vi-en'), JSON.stringify(nc2.map(c=>c.word.id+'/'+c.direction)));
+// setting off → no en→vi
+localStorage.setItem('vn_settings_v1', JSON.stringify({bothDirections:false}));
+var nc3=getNewCards(words,10,true);
+T('bothDirections off → no en→vi', !nc3.some(c=>c.direction==='en-vi'), JSON.stringify(nc3.map(c=>c.direction)));
+localStorage.removeItem('vn_settings_v1');
 
 // ---- cloze/grammar blanking ----
 T('clozeBlank found', /cz-blank/.test(_clozeBlank('Tôi là sinh viên.','là')||''));

@@ -267,28 +267,35 @@ function getNewCards(words, limit, bypassDailyLimit = false) {
   if (max <= 0) return [];
 
   const result = [];
+  const seen = new Set();
+  const add = (w, dir) => {
+    const k = _key(w.id, dir);
+    if (seen.has(k) || result.length >= max) return;
+    seen.add(k); result.push({ word: w, direction: dir });
+  };
   const byId = new Map(words.map(w => [w.id, w]));
 
-  // 1) Priority queue first — sort highest-boost first, then preserve insertion order
+  // 1) Priority queue first (vi→en) — highest-boost first.
   const priority = _loadPriority();
   const priorityIds = Object.keys(priority).sort((a, b) => priority[b] - priority[a]);
   for (const id of priorityIds) {
-    if (result.length >= max) break;
     const w = byId.get(id);
-    if (w && isNew(id, 'vi-en')) result.push({ word: w, direction: 'vi-en' });
+    if (w && isNew(id, 'vi-en')) add(w, 'vi-en');
   }
 
-  // 2) Standard HSK order — fills remaining slots
-  for (const w of words) {
-    if (result.length >= max) break;
-    if (isNew(w.id, 'vi-en')) result.push({ word: w, direction: 'vi-en' });
-  }
-  // 3) Promote to en→zh once the user has passed zh→en at least once
-  //    (S grows above the initial fail value of ~0.4 days only after a pass).
-  for (const w of words) {
-    if (result.length >= max) break;
-    const d = getCardData(w.id, 'vi-en');
-    if (d && d.S >= 1 && isNew(w.id, 'en-vi')) result.push({ word: w, direction: 'en-vi' });
+  // 2) Interleave en→vi PROMOTIONS (words you've already passed vi→en) with new
+  //    vi→en words, so you practice BOTH recognition and production rather than
+  //    only ever receiving. Promotions were previously starved by new words.
+  //    Disable with the "practice both directions" setting.
+  const bothWays = getSettings().bothDirections !== false;
+  const promo = bothWays
+    ? words.filter(w => { const d = getCardData(w.id, 'vi-en'); return d && d.S >= 1 && isNew(w.id, 'en-vi'); })
+    : [];
+  const fresh = words.filter(w => isNew(w.id, 'vi-en'));
+  let pi = 0, fi = 0;
+  while (result.length < max && (pi < promo.length || fi < fresh.length)) {
+    if (pi < promo.length) add(promo[pi++], 'en-vi');
+    if (fi < fresh.length) add(fresh[fi++], 'vi-en');
   }
   return result;
 }
@@ -405,7 +412,7 @@ function removeTodayGoal() {
 const SETTINGS_KEY = 'vn_settings_v1';
 
 function getSettings() {
-  const defaults = { dailyGoalMins: 30, retentionTarget: 0.9, newPerDay: NEW_PER_DAY_DEFAULT, autoSpeakVocab: true, autoSpeakExamples: true };
+  const defaults = { dailyGoalMins: 30, retentionTarget: 0.9, newPerDay: NEW_PER_DAY_DEFAULT, autoSpeakVocab: true, autoSpeakExamples: true, bothDirections: true };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
   catch { return defaults; }
 }

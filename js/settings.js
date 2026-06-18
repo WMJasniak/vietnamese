@@ -39,6 +39,17 @@ class SettingsModule {
           </label>
         </div>
         <div class="setting-row">
+          <span class="setting-label">Practice both directions (also English → Vietnamese)</span>
+          <label class="setting-toggle-label">
+            <input type="checkbox" id="s-both-dir" ${s.bothDirections !== false ? 'checked' : ''}>
+            <span id="s-both-dir-text">${s.bothDirections !== false ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+        <div class="setting-hint">
+          On (recommended): after you learn a word vi→en, it comes back as en→vi so you
+          practice <em>producing</em> Vietnamese (spelling + tones), not just recognizing it.
+        </div>
+        <div class="setting-row">
           <span class="setting-label">Accept en→vi answers without diacritics</span>
           <label class="setting-toggle-label">
             <input type="checkbox" id="s-no-diacritics" ${s.acceptNoDiacritics === true ? 'checked' : ''}>
@@ -111,6 +122,11 @@ class SettingsModule {
     this.container.querySelector('#s-autospeak-ex').addEventListener('change', e => {
       saveSettings({ ...getSettings(), autoSpeakExamples: e.target.checked });
       this.container.querySelector('#s-autospeak-ex-text').textContent = e.target.checked ? 'On' : 'Off';
+    });
+
+    this.container.querySelector('#s-both-dir').addEventListener('change', e => {
+      saveSettings({ ...getSettings(), bothDirections: e.target.checked });
+      this.container.querySelector('#s-both-dir-text').textContent = e.target.checked ? 'On' : 'Off';
     });
 
     this.container.querySelector('#s-no-diacritics').addEventListener('change', e => {
