@@ -1784,6 +1784,64 @@ main {
   .t-choices { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* Medium-mode: the bare syllable shown above the choices */
+.t-prompt { font-size: 1.8rem; font-weight: 700; min-height: 1.2em; }
+
+/* New-card highlight (vocab) */
+.card--new { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 1px 3px rgba(0,0,0,0.28); }
+
+/* ── Tones: easy matching mode ────────────────────── */
+.t-match-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+.t-chip {
+  font-size: 1.3rem;
+  font-weight: 700;
+  padding: 0.55rem 0.8rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.05s, opacity 0.2s;
+}
+.t-chip:active { transform: scale(0.96); }
+.t-chip--sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--surface2)); }
+.t-chip--done { opacity: 0.25; pointer-events: none; }
+.t-chip.t-wrong { border-color: var(--incorrect); background: color-mix(in srgb, var(--incorrect) 22%, var(--surface2)); }
+
+.t-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.t-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-height: 60px;
+  justify-content: center;
+  background: var(--surface2);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.t-slot-name { font-size: 0.9rem; font-weight: 600; }
+.t-slot-en { font-size: 0.65rem; color: var(--dim); }
+.t-slot-form { font-size: 1.3rem; font-weight: 700; color: var(--correct); }
+.t-slot--filled { border-style: solid; border-color: var(--correct); background: color-mix(in srgb, var(--correct) 16%, var(--surface2)); cursor: default; }
+.t-slot.t-wrong { border-color: var(--incorrect); background: color-mix(in srgb, var(--incorrect) 18%, var(--surface2)); }
+@media (max-width: 480px) {
+  .t-slots { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* ── Cloze tab ────────────────────────────────────── */
 .cz-en {
   font-size: .9rem;

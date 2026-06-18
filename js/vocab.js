@@ -221,6 +221,7 @@ class VocabModule {
       loadMsg: this.container.querySelector('#v-load-msg'),
       session: this.container.querySelector('#v-session'),
       stats: this.container.querySelector('#v-stats'),
+      card: this.container.querySelector('#v-card'),
       dir: this.container.querySelector('#v-dir'),
       qcount: this.container.querySelector('#v-qcount'),
       prompt: this.container.querySelector('#v-prompt'),
@@ -277,6 +278,12 @@ class VocabModule {
 
   _buildQueue(extra = 0) {
     const due = getDueCards(this.words);
+    // Shuffle the due cards so directions (vi→en / en→vi) and a word's two cards
+    // are mixed up, rather than clustered by due-time.
+    for (let i = due.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [due[i], due[j]] = [due[j], due[i]];
+    }
     const newCards = getNewCards(this.words, 30 + extra, extra > 0);
     this.queue = [];
     let di = 0, ni = 0;
@@ -296,6 +303,7 @@ class VocabModule {
 
     const isNewCard = (typeof isNew === 'function') ? isNew(word.id, direction) : false;
     this.current.isNew = isNewCard;
+    this.el.card?.classList.toggle('card--new', isNewCard);
     const badge = isNewCard ? '<span class="new-badge">NEW</span> ' : '';
 
     if (direction === 'vi-en') {
@@ -426,7 +434,10 @@ class VocabModule {
     recordAnswer(word.id, direction, !!result);
     if (!result && !(this.current.requeueCount > 0)) {
       this.current.requeueCount = (this.current.requeueCount || 0) + 1;
-      this.queue.push(this.current);
+      // Reinsert a few cards ahead (not at the very end) so a missed word comes
+      // back while it's still fresh, instead of ~30 cards later.
+      const pos = Math.min(this.queue.length, 4);
+      this.queue.splice(pos, 0, this.current);
     }
     this._refreshStats();
   }
@@ -444,7 +455,7 @@ class VocabModule {
       <div class="fb-examples">
         ${examples.map(ex => `
           <div class="fb-ex">
-            <div class="fb-ex-zh">${highlightTarget(ex.vi, word.word)}</div>
+            <div class="fb-ex-zh">${highlightTarget(ex.vi, word.word)} <button class="zh-speak fb-speak" data-say="${esc(ex.vi)}" type="button" aria-label="Listen" title="Listen">🔊</button></div>
             <div class="fb-ex-en">${esc(ex.en || '')}</div>
           </div>
         `).join('')}
@@ -453,7 +464,7 @@ class VocabModule {
       <div class="fb-verdict">${correct ? '✓ Correct!' : '✗ Incorrect'}</div>
       ${(!correct && typed) ? `<div class="fb-typed">You typed: <em>${esc(typed)}</em></div>` : ''}
       <div class="fb-word">
-        <div class="fb-chars">${esc(word.word)}</div>
+        <div class="fb-chars">${esc(word.word)} <button class="zh-speak fb-speak" data-say="${esc(word.word)}" type="button" aria-label="Listen" title="Listen">🔊</button></div>
         <div class="fb-pinyin">${esc((word.pos || []).join(' · '))} · ${esc(word.cefr || '')}</div>
         <div class="fb-meanings">${meaningRows}</div>
       </div>
@@ -461,6 +472,9 @@ class VocabModule {
       ${(!correct && typed) ? '<button class="btn-ghost fb-override" id="v-override" type="button">✓ That should\'ve counted</button>' : ''}
     `;
     this.el.feedback.querySelector('#v-override')?.addEventListener('click', () => this._markCorrect());
+    this.el.feedback.querySelectorAll('[data-say]').forEach(b => b.addEventListener('click', () => speakVi(b.dataset.say)));
+    // Hear the Vietnamese after an en→vi card (it wasn't played before answering).
+    if (direction === 'en-vi' && getSettings().autoSpeakVocab !== false) speakVi(word.word);
     this.el.check.disabled = true;
     this.el.input.disabled = true;
     this.el.dontknow.classList.add('hidden');

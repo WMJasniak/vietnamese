@@ -302,7 +302,7 @@ class GrammarModule {
     store[g.id] = fsrsUpdate(store[g.id] || null, correct);
     _grSave(store);
     if (isNew) _grBumpNew();
-    if (!correct) this.queue.push({ g, isNew: false }); // see it again this session
+    if (!correct) this.queue.splice(Math.min(this.queue.length, 4), 0, { g, isNew: false }); // see it again soon
 
     this.session.total++;
     if (correct) this.session.correct++;

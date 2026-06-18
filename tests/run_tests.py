@@ -52,6 +52,13 @@ for (var k in tx){ var got=telexCompile(k); T('telex '+k+'->'+tx[k], nfc(got)===
 // ---- detectVietnameseTone ----
 var tones={'ma':'ngang','mà':'huyen','má':'sac','mả':'hoi','mã':'nga','mạ':'nang','tiếng':'sac','việt':'nang','đường':'huyen'};
 for (var w in tones){ T('tone '+w, detectVietnameseTone(w)===tones[w], 'got '+detectVietnameseTone(w)); }
+// easy-mode matching data: every form's detected tone matches its key
+var tmBad=[];
+for (var i=0;i<TONE_MATCH_SETS.length;i++){ var ms=TONE_MATCH_SETS[i];
+  ['ngang','huyen','sac','hoi','nga','nang'].forEach(function(k){ if(detectVietnameseTone(ms[k])!==k) tmBad.push(ms[k]+'!='+k); });
+}
+T('TONE_MATCH_SETS forms match their tone', tmBad.length===0, tmBad.join(' | '));
+T('toneDifficulty default = medium', (getSettings().toneDifficulty||'medium')==='medium');
 
 // ---- checkVietnamese (strict default) ----
 T('checkVi exact', checkVietnamese('tôi','tôi')===true);

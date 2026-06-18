@@ -50,6 +50,16 @@ class SettingsModule {
           practice <em>producing</em> Vietnamese (spelling + tones), not just recognizing it.
         </div>
         <div class="setting-row">
+          <span class="setting-label">Tone drill difficulty</span>
+          <div class="setting-control">
+            <select id="s-tone-diff" class="setting-input">
+              <option value="easy" ${s.toneDifficulty === 'easy' ? 'selected' : ''}>Easy — match tones</option>
+              <option value="medium" ${(s.toneDifficulty || 'medium') === 'medium' ? 'selected' : ''}>Medium — see syllable + listen</option>
+              <option value="hard" ${s.toneDifficulty === 'hard' ? 'selected' : ''}>Hard — listen only</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-row">
           <span class="setting-label">Accept en→vi answers without diacritics</span>
           <label class="setting-toggle-label">
             <input type="checkbox" id="s-no-diacritics" ${s.acceptNoDiacritics === true ? 'checked' : ''}>
@@ -127,6 +137,10 @@ class SettingsModule {
     this.container.querySelector('#s-both-dir').addEventListener('change', e => {
       saveSettings({ ...getSettings(), bothDirections: e.target.checked });
       this.container.querySelector('#s-both-dir-text').textContent = e.target.checked ? 'On' : 'Off';
+    });
+
+    this.container.querySelector('#s-tone-diff').addEventListener('change', e => {
+      saveSettings({ ...getSettings(), toneDifficulty: e.target.value });
     });
 
     this.container.querySelector('#s-no-diacritics').addEventListener('change', e => {

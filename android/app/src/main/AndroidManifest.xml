@@ -3,6 +3,8 @@
 
     <!-- Needed for Google TTS audio and the Reader's PDF.js/JSZip CDNs. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- navigator.vibrate() (correct-answer haptic) is a no-op without this. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="true"
