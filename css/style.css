@@ -1942,6 +1942,36 @@ html { overscroll-behavior-y: none; }
 }
 .fb-override:hover { color: var(--correct); border-color: var(--correct); }
 
+/* New-card introduction (study before testing) */
+.v-intro {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  text-align: center;
+}
+.v-intro.hidden { display: none; }
+.v-intro-label {
+  font-size: 0.78rem;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.6rem;
+}
+#v-intro-go { width: 100%; }
+#v-intro-go.hidden { display: none; }
+.new-badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+
 /* ── Title polish (gold flag star) ──────────────────── */
 .app-title { font-size: 1.4rem; letter-spacing: 0.015em; }
 .app-title::before {

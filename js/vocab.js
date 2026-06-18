@@ -196,6 +196,8 @@ class VocabModule {
           </div>
           <div class="card-prompt" id="v-prompt"></div>
           <div class="card-hint" id="v-hint"></div>
+          <div id="v-intro" class="v-intro hidden"></div>
+          <button class="btn hidden" id="v-intro-go" type="button">Got it — let me try ✏️</button>
           <div class="card-input-row">
             <input id="v-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Your answer…">
             <button class="btn" id="v-check">Check</button>
@@ -224,6 +226,9 @@ class VocabModule {
       prompt: this.container.querySelector('#v-prompt'),
       hint: this.container.querySelector('#v-hint'),
       input: this.container.querySelector('#v-input'),
+      inputRow: this.container.querySelector('.card-input-row'),
+      intro: this.container.querySelector('#v-intro'),
+      introGo: this.container.querySelector('#v-intro-go'),
       check: this.container.querySelector('#v-check'),
       dontknow: this.container.querySelector('#v-dontknow'),
       feedback: this.container.querySelector('#v-feedback'),
@@ -236,6 +241,7 @@ class VocabModule {
     };
     this.el.check.addEventListener('click', () => this._submit());
     this.el.dontknow.addEventListener('click', () => this._dontKnow());
+    this.el.introGo.addEventListener('click', () => this._beginPractice());
     this.el.next.addEventListener('click',  () => this._advance());
     this.el.addMore.addEventListener('click', () => this._addMore());
     this.el.input.addEventListener('keydown', e => {
@@ -288,20 +294,21 @@ class VocabModule {
     this.current.typed = undefined;
     this._pending = false;
 
-    const speakBtn = `
-      <div class="zh-char-row">
-        <div class="zh-char vi-word">${esc(word.word)}</div>
-        <button class="zh-speak" id="v-speak" type="button" aria-label="Listen" title="Listen">🔊</button>
-      </div>
-    `;
+    const isNewCard = (typeof isNew === 'function') ? isNew(word.id, direction) : false;
+    this.current.isNew = isNewCard;
+    const badge = isNewCard ? '<span class="new-badge">NEW</span> ' : '';
 
     if (direction === 'vi-en') {
-      this.el.dir.textContent = `Vietnamese → English · ${word.cefr || '—'}`;
-      this.el.prompt.innerHTML = speakBtn;
+      this.el.dir.innerHTML = `${badge}Vietnamese → English · ${esc(word.cefr || '—')}`;
+      this.el.prompt.innerHTML = `
+        <div class="zh-char-row">
+          <div class="zh-char vi-word">${esc(word.word)}</div>
+          <button class="zh-speak" id="v-speak" type="button" aria-label="Listen" title="Listen">🔊</button>
+        </div>`;
       this.el.hint.textContent = 'Any correct meaning is accepted';
       this.el.input.placeholder = 'English meaning…';
     } else {
-      this.el.dir.textContent = `English → Vietnamese · ${word.cefr || '—'}`;
+      this.el.dir.innerHTML = `${badge}English → Vietnamese · ${esc(word.cefr || '—')}`;
       const meanings = (word.meanings || []).slice(0, 4).join(' · ');
       this.el.prompt.innerHTML = `
         <div class="en-word">${esc(meanings || '(no meaning)')}</div>
@@ -313,20 +320,59 @@ class VocabModule {
         : 'Type the Vietnamese word <strong>with diacritics</strong> (Settings to relax)';
       this.el.input.placeholder = 'Vietnamese word…';
     }
-
-    // Wire speak button + auto-speak only on vi→en (en→vi would give away the answer)
-    const speakEl = this.el.prompt.querySelector('#v-speak');
-    speakEl?.addEventListener('click', () => speakVi(word.word));
-    if (direction === 'vi-en' && getSettings().autoSpeakVocab !== false) speakVi(word.word);
+    this.el.prompt.querySelector('#v-speak')?.addEventListener('click', () => speakVi(word.word));
 
     this.el.qcount.textContent = `${this.queue.length} left`;
     this.el.feedback.className = 'feedback hidden';
     this.el.next.classList.add('hidden');
+
+    if (isNewCard) this._showIntro(word, direction);
+    else this._showTest(direction === 'vi-en' && getSettings().autoSpeakVocab !== false ? word.word : null);
+  }
+
+  // Introduce a brand-new card (show the answer + audio + an example) before
+  // asking for recall — a blind test on a never-seen word is just a forced miss.
+  _showIntro(word, direction) {
+    const exs = (typeof getExamples === 'function') ? getExamples(word.word, 1) : [];
+    const ex = exs[0];
+    const meaningRows = (word.meanings || []).slice(0, 3)
+      .map((m, i) => `<div class="fb-meaning ${i === 0 ? 'primary' : ''}">${esc(m)}</div>`).join('');
+    const answerWord = direction === 'en-vi'
+      ? `<div class="zh-char-row"><div class="zh-char vi-word">${esc(word.word)}</div>
+           <button class="zh-speak" id="v-intro-speak" type="button" aria-label="Listen" title="Listen">🔊</button></div>`
+      : '';
+    const exHtml = ex
+      ? `<div class="fb-ex"><div class="fb-ex-zh">${highlightTarget(ex.vi, word.word)}</div><div class="fb-ex-en">${esc(ex.en || '')}</div></div>`
+      : '';
+    this.el.intro.innerHTML = `
+      <div class="v-intro-label">New word — learn it, then type it</div>
+      ${answerWord}
+      <div class="fb-meanings">${meaningRows}</div>
+      ${exHtml}
+    `;
+    this.el.intro.classList.remove('hidden');
+    this.el.introGo.classList.remove('hidden');
+    this.el.inputRow.classList.add('hidden');
+    this.el.dontknow.classList.add('hidden');
+    this.el.intro.querySelector('#v-intro-speak')?.addEventListener('click', () => speakVi(word.word));
+    if (getSettings().autoSpeakVocab !== false) speakVi(word.word);
+  }
+
+  // Move from the intro to the recall attempt.
+  _beginPractice() {
+    this.el.intro.classList.add('hidden');
+    this.el.introGo.classList.add('hidden');
+    this._showTest(null);
+  }
+
+  _showTest(speakWord) {
+    this.el.inputRow.classList.remove('hidden');
     this.el.dontknow.classList.remove('hidden');
     this.el.check.disabled = false;
     this.el.input.disabled = false;
     this.el.input.value = '';
     this.el.input.focus();
+    if (speakWord) speakVi(speakWord);
   }
 
   _submit() {
