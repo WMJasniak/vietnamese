@@ -69,6 +69,10 @@ T('checkEn water', checkEnglish('water',['water'])===true);
 T('checkEn typo hous', checkEnglish('hous',['house'])===true);
 T('checkEn reject wrong', checkEnglish('zzzz',['water'])===false);
 T('checkEn stopword not match', checkEnglish('a',['a friend'])===false);
+T('checkEn stem complete->completed', checkEnglish('complete',['having completed this action, perfect aspect','having reached this state'])===true);
+T('checkEn stem arrived->arrive', checkEnglish('arrived',['to arrive, to come'])===true);
+T('checkEn short word no false stem', checkEnglish('cat',['category'])===false);
+T('checkEn still rejects unrelated', checkEnglish('zzzz',['water; to water'])===false);
 
 // ---- levenshtein ----
 T('lev same', levenshtein('abc','abc')===0);
@@ -139,6 +143,7 @@ function firstAfterOverride(word){ var w=byw[word]; if(!w) return null; var pm=P
   if(!pm) return w.meanings[0]; var rest=w.meanings.filter(function(m){return m.trim().toLowerCase()!==pm.toLowerCase();}); return [pm].concat(rest)[0]; }
 T('override tôi -> I, me', firstAfterOverride('tôi')==='I, me', firstAfterOverride('tôi'));
 T('override là -> to be', firstAfterOverride('là')==='to be', firstAfterOverride('là'));
+T('override đã concise', firstAfterOverride('đã')==='already; did (past/completed marker)', firstAfterOverride('đã'));
 
 // ---- Plan (stage-aware, scaling) ----
 var basePlan=[{tab:'a',minutes:4},{tab:'b',minutes:10},{tab:'c',minutes:5},{tab:'d',minutes:7},{tab:'e',minutes:4}];

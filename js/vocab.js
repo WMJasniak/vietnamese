@@ -473,8 +473,17 @@ function checkEnglish(input, meanings) {
         const maxDist = partCore.length > 8 ? 2 : 1;
         if (levenshtein(niCore, partCore) <= maxDist) return true;
       }
-      for (const word of partCore.split(' ')) {
-        if (word.length >= 2 && word === niCore && !ENGLISH_STOP.has(word)) return true;
+      // Single content word in the gloss matches the answer. We allow stems and
+      // 1-char inflections (so "complete" matches "completed", "arrive" matches
+      // "arrived") because vi→en tests comprehension, not exact recall.
+      const singleInput = niCore.indexOf(' ') < 0;
+      for (const gw of partCore.split(' ')) {
+        if (ENGLISH_STOP.has(gw)) continue;
+        if (gw.length >= 2 && gw === niCore) return true;
+        if (singleInput && niCore.length >= 4 && gw.length >= 4) {
+          if (gw.startsWith(niCore) || niCore.startsWith(gw)) return true;
+          if (levenshtein(gw, niCore) <= 1) return true;
+        }
       }
       const niWords = niCore.split(' ').filter(Boolean);
       const partWords = partCore.split(' ').filter(Boolean);
