@@ -196,6 +196,30 @@ function recordAnswer(wordId, dir, isCorrect) {
   _saveDaily();
 }
 
+// ── User-accepted answers ────────────────────────────
+// When the user overrides a wrong verdict ("that should've counted"), we
+// remember their answer so it's accepted next time for that word+direction.
+const ACCEPTED_KEY = 'vn_accepted_v1';
+
+function getAcceptedAnswers(wordId, dir) {
+  try {
+    const d = JSON.parse(localStorage.getItem(ACCEPTED_KEY) || '{}');
+    return (d[wordId] && d[wordId][dir]) || [];
+  } catch { return []; }
+}
+
+function addAcceptedAnswer(wordId, dir, answer) {
+  answer = String(answer || '').trim();
+  if (!answer) return;
+  try {
+    const d = JSON.parse(localStorage.getItem(ACCEPTED_KEY) || '{}');
+    d[wordId] = d[wordId] || {};
+    d[wordId][dir] = d[wordId][dir] || [];
+    if (!d[wordId][dir].some(a => a.toLowerCase() === answer.toLowerCase())) d[wordId][dir].push(answer);
+    localStorage.setItem(ACCEPTED_KEY, JSON.stringify(d));
+  } catch {}
+}
+
 function getDueCards(words) {
   _loadProgress();
   const due = [];

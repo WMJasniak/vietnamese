@@ -96,6 +96,15 @@ T('card after record', getCardData('w1','vi-en')!==null);
 T('isNew after', isNew('w1','vi-en')===false);
 var st=getStats(); T('stats reviewed counts', st.reviewed>=1, JSON.stringify(st));
 
+// ---- accepted-answer override store ----
+localStorage.removeItem('vn_accepted_v1');
+T('accepted empty initially', getAcceptedAnswers('wx','vi-en').length===0);
+addAcceptedAnswer('wx','vi-en','finished');
+T('accepted stored', getAcceptedAnswers('wx','vi-en').indexOf('finished')>=0);
+addAcceptedAnswer('wx','vi-en','finished');
+T('accepted dedupes (case-insensitive)', getAcceptedAnswers('wx','vi-en').length===1);
+T('accepted makes checkEnglish pass', checkEnglish('finished', ['something else'].concat(getAcceptedAnswers('wx','vi-en')))===true);
+
 // ---- getNewCards ----
 localStorage.clear();
 var words=[{id:'a',word:'a'},{id:'b',word:'b'},{id:'c',word:'c'}];

@@ -284,6 +284,9 @@ class VocabModule {
     this.current = this.queue.shift();
     const { word, direction } = this.current;
     this.current.attempts = 0;
+    this.current.result = undefined;
+    this.current.typed = undefined;
+    this._pending = false;
 
     const speakBtn = `
       <div class="zh-char-row">
@@ -331,16 +334,15 @@ class VocabModule {
     if (!raw) return;
     const { word, direction } = this.current;
     this.current.attempts++;
+    const accepted = (typeof getAcceptedAnswers === 'function') ? getAcceptedAnswers(word.id, direction) : [];
     const correct = direction === 'vi-en'
-      ? checkEnglish(raw, [...(word.meanings || []), ...(word.altMeanings || [])])
-      : checkVietnamese(raw, word.word);
-    recordAnswer(word.id, direction, correct);
+      ? checkEnglish(raw, [...(word.meanings || []), ...(word.altMeanings || []), ...accepted])
+      : (checkVietnamese(raw, word.word) || accepted.some(a => a.toLowerCase() === raw.toLowerCase()));
     if (correct) window.celebrateCorrect?.();
-    if (!correct && !(this.current.requeueCount > 0)) {
-      this.current.requeueCount = (this.current.requeueCount || 0) + 1;
-      this.queue.push(this.current);
-    }
-    this._refreshStats();
+    // Grading is deferred to _finalize (on advance) so an override can flip the
+    // result without double-counting the SRS card or the daily stats.
+    this.current.typed = raw;
+    this.current.result = correct;
     this._showFeedback(correct, word, direction, raw);
   }
 
@@ -349,13 +351,38 @@ class VocabModule {
   _dontKnow() {
     if (!this.el.feedback.classList.contains('hidden')) return;
     const { word, direction } = this.current;
-    recordAnswer(word.id, direction, false);
-    if (!(this.current.requeueCount > 0)) {
+    this.current.typed = null;
+    this.current.result = false;
+    this._showFeedback(false, word, direction, null);
+  }
+
+  // Override: "that should've counted." Flip the pending result to correct and
+  // remember the typed answer as acceptable for this word+direction.
+  _markCorrect() {
+    if (!this.current || this.current.result === true) return;
+    const { word, direction } = this.current;
+    this.current.result = true;
+    if (this.current.typed && typeof addAcceptedAnswer === 'function')
+      addAcceptedAnswer(word.id, direction, this.current.typed);
+    window.celebrateCorrect?.();
+    const fb = this.el.feedback;
+    fb.className = 'feedback correct';
+    const v = fb.querySelector('.fb-verdict'); if (v) v.textContent = '✓ Counted as correct';
+    const t = fb.querySelector('.fb-typed'); if (t) t.remove();
+    const o = fb.querySelector('.fb-override'); if (o) o.remove();
+  }
+
+  // Record the just-answered card's final result (after any override).
+  _finalize() {
+    if (!this._pending || !this.current) return;
+    this._pending = false;
+    const { word, direction, result } = this.current;
+    recordAnswer(word.id, direction, !!result);
+    if (!result && !(this.current.requeueCount > 0)) {
       this.current.requeueCount = (this.current.requeueCount || 0) + 1;
       this.queue.push(this.current);
     }
     this._refreshStats();
-    this._showFeedback(false, word, direction, null);
   }
 
   _showFeedback(correct, word, direction, typed) {
@@ -363,6 +390,7 @@ class VocabModule {
     fb.className = `feedback ${correct ? 'correct' : 'incorrect'}`;
     // Minimum-display guard — _advance ignores Enter for 250ms after this point
     this._feedbackShownAt = Date.now();
+    this._pending = true;   // result not yet recorded (see _finalize)
     const meaningRows = (word.meanings || []).slice(0, 3)
       .map((m, i) => `<div class="fb-meaning ${i === 0 ? 'primary' : ''}">${esc(m)}</div>`).join('');
     const examples = (typeof getExamples === 'function') ? getExamples(word.word, 2) : [];
@@ -384,7 +412,9 @@ class VocabModule {
         <div class="fb-meanings">${meaningRows}</div>
       </div>
       ${examplesHtml}
+      ${(!correct && typed) ? '<button class="btn-ghost fb-override" id="v-override" type="button">✓ That should\'ve counted</button>' : ''}
     `;
+    this.el.feedback.querySelector('#v-override')?.addEventListener('click', () => this._markCorrect());
     this.el.check.disabled = true;
     this.el.input.disabled = true;
     this.el.dontknow.classList.add('hidden');
@@ -399,6 +429,7 @@ class VocabModule {
     const MIN_FEEDBACK_MS = 250;
     if (this._feedbackShownAt && Date.now() - this._feedbackShownAt < MIN_FEEDBACK_MS) return;
     this._feedbackShownAt = 0;
+    this._finalize();
     if (this.queue.length === 0) {
       this._buildQueue();
       if (this.queue.length === 0) { this._showDone(); return; }

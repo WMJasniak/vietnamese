@@ -1927,6 +1927,21 @@ html { overscroll-behavior-y: none; }
 .btn-dontknow:hover { color: var(--text); border-color: var(--dim); }
 .btn-dontknow.hidden { display: none; }
 
+/* "That should've counted" override on the feedback panel */
+.fb-override {
+  display: block;
+  margin: 0.7rem auto 0;
+  font-size: 0.82rem;
+  color: var(--dim);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.fb-override:hover { color: var(--correct); border-color: var(--correct); }
+
 /* ── Title polish (gold flag star) ──────────────────── */
 .app-title { font-size: 1.4rem; letter-spacing: 0.015em; }
 .app-title::before {
