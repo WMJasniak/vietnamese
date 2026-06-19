@@ -243,5 +243,19 @@ sw = open(os.path.join(ROOT, "sw.js"), encoding="utf-8").read()
 sw_missing = [f for f in on_disk if f not in sw]
 chk("service worker precaches all js", not sw_missing, str(sw_missing))
 
+# Every `this.el.<name>` access must have a matching key in some `this.el = {…}`
+# literal in the same file (catches DOM-wiring typos like the tones `feedback`
+# bug the JS harness can't see without a real DOM).
+for jf in sorted(on_disk):
+    src = open(os.path.join(ROOT, jf), encoding="utf-8").read()
+    if "this.el = {" not in src:
+        continue
+    keys = set()
+    for block in re.findall(r"this\.el\s*=\s*\{(.*?)\}", src, re.S):
+        keys |= set(re.findall(r"(\w+)\s*:", block))
+    used = set(re.findall(r"this\.el\.(\w+)\b", src))
+    missing = sorted(u for u in used if u not in keys)
+    chk(f"{jf}: all this.el.* are defined", not missing, f"undefined: {missing}")
+
 print(f"\nSUMMARY: JS {len(passed)}/{len(results)} | data {'all ok' if dfail==0 else str(dfail)+' failed'}")
 raise SystemExit(1 if (failed or dfail) else 0)

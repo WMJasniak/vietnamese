@@ -116,6 +116,7 @@ class TonesModule {
       prompt: this.container.querySelector('#t-prompt'),
       reveal: this.container.querySelector('#t-reveal'),
       choices: this.container.querySelector('#t-choices'),
+      feedback: this.container.querySelector('#t-feedback'),
       next: this.container.querySelector('#t-next'),
     };
     this.el.play.addEventListener('click', () => { if (this.current) speakVi(this.current.word); });
