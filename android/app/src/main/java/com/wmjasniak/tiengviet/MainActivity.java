@@ -399,7 +399,18 @@ public class MainActivity extends Activity {
             new Thread(() -> {
                 HttpURLConnection conn = null;
                 try {
-                    conn = (HttpURLConnection) new URL(UPDATE_VERSION_URL).openConnection();
+                    // Cache-bust: GitHub's release-asset CDN can serve a
+                    // stale cached copy of this tiny file for a while right
+                    // after a new release publishes (observed directly —
+                    // the plain URL kept returning an old version number
+                    // when a query-stringed request to the same asset
+                    // already saw the new one). The APK download itself
+                    // deliberately isn't cache-busted; a cached CDN copy of
+                    // a multi-MB file is a feature, not a problem, and we
+                    // only fetch it once this check has already confirmed a
+                    // newer build exists.
+                    String bustUrl = UPDATE_VERSION_URL + "?t=" + System.currentTimeMillis();
+                    conn = (HttpURLConnection) new URL(bustUrl).openConnection();
                     conn.setConnectTimeout(8000);
                     conn.setReadTimeout(8000);
                     conn.setInstanceFollowRedirects(true);
