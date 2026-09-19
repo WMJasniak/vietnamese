@@ -15,6 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.speech.tts.TextToSpeech;
+import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
@@ -201,12 +202,22 @@ public class MainActivity extends Activity {
             @Override
             public void onReceive(Context context, Intent intent) {
                 long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                Log.d("UpdateDL", "onReceive action=" + intent.getAction() + " id=" + id
+                        + " pending=" + pendingUpdateDownloadId);
                 if (id == pendingUpdateDownloadId) handleUpdateDownloadComplete(id);
             }
         };
         IntentFilter downloadFilter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(updateDownloadReceiver, downloadFilter, Context.RECEIVER_NOT_EXPORTED);
+            // RECEIVER_EXPORTED, not _NOT_EXPORTED: DownloadManager's completion
+            // broadcast comes from a different system process/UID
+            // (com.android.providers.downloads), and _NOT_EXPORTED has been
+            // unreliable at delivering it on some Android 13+ builds even
+            // though it's a protected broadcast. Safe here regardless: the
+            // handler only acts when the broadcast's id matches
+            // pendingUpdateDownloadId, a value nothing outside this class ever
+            // sees, so a spoofed broadcast from another app just gets ignored.
+            registerReceiver(updateDownloadReceiver, downloadFilter, Context.RECEIVER_EXPORTED);
         } else {
             registerReceiver(updateDownloadReceiver, downloadFilter);
         }
@@ -294,20 +305,25 @@ public class MainActivity extends Activity {
     }
 
     private void handleUpdateDownloadComplete(long id) {
+        Log.d("UpdateDL", "handleUpdateDownloadComplete id=" + id);
         pendingUpdateDownloadId = -1;
         DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
         if (dm == null) { notifyJs("__onUpdateError", jsonStr("Download service unavailable")); return; }
         try (Cursor c = dm.query(new DownloadManager.Query().setFilterById(id))) {
             if (c != null && c.moveToFirst()) {
                 int status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
+                Log.d("UpdateDL", "status=" + status + " successful=" + DownloadManager.STATUS_SUCCESSFUL);
                 if (status == DownloadManager.STATUS_SUCCESSFUL) {
                     try {
                         Uri apkUri = dm.getUriForDownloadedFile(id);
+                        Log.d("UpdateDL", "apkUri=" + apkUri);
                         Intent intent = new Intent(Intent.ACTION_VIEW);
                         intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
                         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
                         startActivity(intent);
+                        Log.d("UpdateDL", "startActivity(install intent) called OK");
                     } catch (Exception e) {
+                        Log.e("UpdateDL", "install intent failed", e);
                         notifyJs("__onUpdateError", jsonStr("Couldn't open installer: " + e.getMessage()));
                     }
                 } else {
