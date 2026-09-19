@@ -86,6 +86,7 @@ class ListeningModule {
     this.el.input.value = '';
     this.el.input.focus();
     if (typeof speakVi === 'function') speakVi(this.current.word);
+    this._shownAt = Date.now();   // start of the recall attempt, for rating inference
   }
 
   _submit() {
@@ -108,7 +109,16 @@ class ListeningModule {
     const word = this.current;
     this.session.total++;
     if (correct) this.session.correct++;
-    if (typeof recordAnswer === 'function') recordAnswer(word.id, 'en-vi', correct);
+    if (typeof recordAnswer === 'function') {
+      // Own latency bucket, not the shared "type Vietnamese" one: this task
+      // always includes listening-to-audio time before typing even starts,
+      // so its normal pace is structurally slower and would otherwise bias
+      // every answer here toward "Hard" against Cloze/Vocab's faster baseline.
+      recordAnswer(word.id, 'en-vi', correct, {
+        latencyMs: Date.now() - (this._shownAt || Date.now()),
+        bucket: 'listening',
+      });
+    }
 
     this.el.reveal.innerHTML = `<span class="ls-reveal-word">${esc(word.word)}</span>`;
     this.el.feedback.className = `feedback ${correct ? 'correct' : 'incorrect'}`;

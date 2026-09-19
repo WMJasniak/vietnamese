@@ -4,7 +4,7 @@ import quickjs
 import pathlib
 ROOT = str(pathlib.Path(__file__).resolve().parent.parent)
 FILES = ["js/data.js","js/sentences.js","js/srs.js","js/telex.js","js/vocab.js",
-         "js/tones.js","js/cloze.js","js/grammar.js","js/plan.js"]
+         "js/tones.js","js/segments.js","js/cloze.js","js/grammar.js","js/chunks.js","js/plan.js","js/speak.js"]
 
 PREAMBLE = r"""
 var __ls={}; var localStorage={ getItem:function(k){return (k in __ls)?__ls[k]:null;},
@@ -85,15 +85,61 @@ T('checkEn still rejects unrelated', checkEnglish('zzzz',['water; to water'])===
 T('lev same', levenshtein('abc','abc')===0);
 T('lev one', levenshtein('abc','abd')===1);
 
-// ---- FSRS ----
+// ---- _speechVerdict (Speak tab ASR grading) ----
+T('speech exact match', _speechVerdict('tôi','tôi')==='good');
+T('speech diacritic-stripped still good (ASR often drops tone marks)', _speechVerdict('toi','tôi')==='good');
+T('speech case/whitespace insensitive', _speechVerdict('  TÔI  ','tôi')==='good');
+T('speech punctuation ignored', _speechVerdict('tôi.','tôi')==='good');
+T('speech whole-sentence diacritic-dropped transcript still good', _speechVerdict('Hom nay toi di hoc','Hôm nay tôi đi học')==='good');
+T('speech single-letter mishearing -> close, not good', _speechVerdict('tom','tôi')==='close');
+T('speech one-word substitution in a sentence -> close', _speechVerdict('Tôi là xinh viên','Tôi là sinh viên')==='close');
+T('speech way off -> off', _speechVerdict('xin chào','tôi')==='off');
+T('speech empty transcript -> off', _speechVerdict('','tôi')==='off');
+T('speech whitespace-only transcript -> off', _speechVerdict('   ','tôi')==='off');
+
+// ---- FSRS (rating is now 1..4 = Again/Hard/Good/Easy, not a boolean) ----
 var nowMs=Date.now();
-var p=fsrsUpdate(null,true);
-T('fsrs pass shape', p && p.S>0 && p.nextReview>nowMs && p.reps===1 && p.lapses===0, JSON.stringify(p));
-var f=fsrsUpdate(null,false);
-T('fsrs fail lapse', f && f.lapses===1);
-T('fsrs fail interval < pass interval', (f.nextReview-nowMs) < (p.nextReview-nowMs));
-var p2=fsrsUpdate(p,true);
+var p=fsrsUpdate(null,GOOD);
+T('fsrs good-rating shape', p && p.S>0 && p.nextReview>nowMs && p.reps===1 && p.lapses===0, JSON.stringify(p));
+var f=fsrsUpdate(null,AGAIN);
+T('fsrs again-rating lapse', f && f.lapses===1);
+T('fsrs again-rating interval < good-rating interval', (f.nextReview-nowMs) < (p.nextReview-nowMs));
+var p2=fsrsUpdate(p,GOOD);
 T('fsrs recall grows stability', p2.S>=p.S, 'p.S='+p.S+' p2.S='+p2.S);
+
+// Hard/Easy actually change outcomes relative to Good, from identical prior state
+var base={D:5,S:10,lastReview:nowMs-5*DAY_MS,nextReview:nowMs,reps:3,lapses:0};
+var rHard=fsrsUpdate(base,HARD), rGood=fsrsUpdate(base,GOOD), rEasy=fsrsUpdate(base,EASY);
+T('fsrs Hard grows stability less than Good', rHard.S<rGood.S, 'hard='+rHard.S+' good='+rGood.S);
+T('fsrs Easy grows stability more than Good', rEasy.S>rGood.S, 'easy='+rEasy.S+' good='+rGood.S);
+T('fsrs Easy lowers difficulty vs Good', rEasy.D<rGood.D, 'easy.D='+rEasy.D+' good.D='+rGood.D);
+T('fsrs Hard raises difficulty vs Good', rHard.D>rGood.D, 'hard.D='+rHard.D+' good.D='+rGood.D);
+T('fsrs Again raises difficulty most', fsrsUpdate(base,AGAIN).D>rHard.D);
+// difficulty stays within FSRS's [1,10] clamp even after repeated Again at the ceiling
+var dCeil={D:10,S:1,lastReview:nowMs-DAY_MS,nextReview:nowMs,reps:1,lapses:0};
+T('fsrs difficulty clamped at 10', fsrsUpdate(dCeil,AGAIN).D<=10);
+
+// ---- inferRating (Again/Hard/Good/Easy from automatic grading, no UI buttons) ----
+localStorage.removeItem('vn_latency_v1');
+T('inferRating wrong answer is always Again', inferRating(false,{retried:false,latencyMs:1,bucket:'x'})===AGAIN);
+T('inferRating wrong answer is Again even if fast', inferRating(false,{latencyMs:1,bucket:'x'})===AGAIN);
+T('inferRating retried correct caps at Hard regardless of speed', inferRating(true,{retried:true,latencyMs:1,bucket:'x'})===HARD);
+T('inferRating with no bucket/latency defaults to Good', inferRating(true,{})===GOOD);
+// Build a personal baseline (~1000ms) for a fresh bucket, then check classification
+localStorage.removeItem('vn_latency_v1');
+for (var i=0;i<10;i++) inferRating(true,{latencyMs:1000,bucket:'test-bucket'});
+T('inferRating much faster than baseline -> Easy', inferRating(true,{latencyMs:200,bucket:'test-bucket'})===EASY);
+T('inferRating much slower than baseline -> Hard', inferRating(true,{latencyMs:2000,bucket:'test-bucket'})===HARD);
+T('inferRating near baseline -> Good', inferRating(true,{latencyMs:1000,bucket:'test-bucket'})===GOOD);
+// Before warmup, even a very fast/slow answer just grades Good
+localStorage.removeItem('vn_latency_v1');
+inferRating(true,{latencyMs:1000,bucket:'fresh-bucket'});
+T('inferRating before warmup ignores latency -> Good', inferRating(true,{latencyMs:1,bucket:'fresh-bucket'})===GOOD);
+// Separate buckets don't cross-contaminate each other's baseline
+localStorage.removeItem('vn_latency_v1');
+for (var i=0;i<10;i++) inferRating(true,{latencyMs:5000,bucket:'slow-typist-task'});
+T('inferRating buckets are independent', inferRating(true,{latencyMs:200,bucket:'other-task'})===GOOD);
+localStorage.removeItem('vn_latency_v1');
 
 // ---- recordAnswer / getCardData / isNew ----
 localStorage.clear();
@@ -144,6 +190,82 @@ for (var i=0;i<GRAMMAR.length;i++){ var g=GRAMMAR[i];
   }
 }
 T('GRAMMAR all blanks cloze-able ('+GRAMMAR.length+' points)', grBad.length===0, grBad.join(' | '));
+
+// ---- CHUNKS data integrity: every example must contain its own chunk verbatim ----
+var chBad=[], chIds={};
+for (var i=0;i<CHUNKS.length;i++){ var c=CHUNKS[i];
+  if(!c.id||!c.chunk||!c.en||!c.examples||!c.examples.length){ chBad.push((c.id||'?')+':struct'); continue; }
+  if(chIds[c.id]) chBad.push(c.id+': duplicate id');
+  chIds[c.id]=true;
+  for (var j=0;j<c.examples.length;j++){ var ex=c.examples[j];
+    if(!ex.vi||!ex.en){ chBad.push(c.id+':ex-fields'); continue; }
+    if(_chunkBlank(ex.vi, c.chunk)===null) chBad.push(c.id+': "'+c.chunk+'" not found (or not a discrete token span) in "'+ex.vi+'"');
+  }
+  // a chunk should be more than one word -- a single-word entry belongs in
+  // Vocab/Grammar instead, and would signal a mis-curated entry here
+  if (c.chunk.trim().indexOf(' ') < 0) chBad.push(c.id+': "'+c.chunk+'" is a single word, not a multi-word chunk');
+}
+T('CHUNKS all blanks cloze-able ('+CHUNKS.length+' chunks)', chBad.length===0, chBad.join(' | '));
+
+// No chunk should exactly duplicate a GRAMMAR blank target -- that would
+// mean the same drill item exists (and gets independently SRS-scheduled)
+// in two different tabs, which is redundant rather than additive.
+var grBlanks={};
+for (var i=0;i<GRAMMAR.length;i++){ GRAMMAR[i].examples.forEach(function(ex){ grBlanks[ex.blank]=true; }); }
+var chOverlap = CHUNKS.filter(function(c){ return grBlanks[c.chunk]; }).map(function(c){ return c.chunk; });
+T('CHUNKS do not duplicate a GRAMMAR blank target', chOverlap.length===0, chOverlap.join(' | '));
+
+// ---- SEGMENT_SETS data integrity ----
+// Each set's forms should be genuine minimal pairs: same tone, and either
+// the same rime after a consonant-initial key, or the same consonant frame
+// around a vowel-family key. This is a mechanical proxy — it can't verify
+// the words are real/correctly-glossed (done by hand against data/vocab.json
+// and dictionary sources), but it does catch a mismatched tone or a typo'd
+// rime/vowel, which would silently break the "only the target sound differs"
+// premise the whole drill depends on.
+var U_VARIANTS = ['u','ù','ú','ủ','ũ','ụ'];
+var UH_VARIANTS = ['ư','ừ','ứ','ử','ữ','ự'];
+var sgBad=[];
+for (var i=0;i<SEGMENT_SETS.length;i++){ var set=SEGMENT_SETS[i];
+  if(!set.id||!set.contrast||!set.forms||set.forms.length<2){ sgBad.push(set.id+':struct'); continue; }
+  var tones=[], rimes=[];
+  var isVowelSet = /^u-uh-/.test(set.id);
+  for (var j=0;j<set.forms.length;j++){ var f=set.forms[j];
+    if(!f.key||!f.word||!f.en){ sgBad.push(set.id+':form-fields'); continue; }
+    tones.push(detectVietnameseTone(f.word));
+    if (isVowelSet) {
+      var variants = f.key==='ư' ? UH_VARIANTS : (f.key==='u' ? U_VARIANTS : null);
+      if (!variants) { sgBad.push(set.id+': unexpected vowel key "'+f.key+'"'); continue; }
+      var found = null;
+      for (var k=0;k<variants.length;k++){ if (f.word.indexOf(variants[k])>=0){ found=variants[k]; break; } }
+      if (!found) { sgBad.push(set.id+': "'+f.word+'" has no '+f.key+'-family vowel'); continue; }
+      var otherFamily = f.key==='ư' ? U_VARIANTS : UH_VARIANTS;
+      var frame = f.word.split(found).join('#');
+      rimes.push(frame);
+      for (var k2=0;k2<otherFamily.length;k2++){
+        if (f.word.indexOf(otherFamily[k2])>=0) sgBad.push(set.id+': "'+f.word+'" also contains the other vowel family');
+      }
+    } else {
+      if (f.word.indexOf(f.key)!==0) { sgBad.push(set.id+': "'+f.word+'" does not start with key "'+f.key+'"'); continue; }
+      rimes.push(f.word.slice(f.key.length));
+    }
+  }
+  if (tones.length && tones.some(function(t){return t!==tones[0];})) sgBad.push(set.id+': tone mismatch across forms ('+tones.join(',')+')');
+  if (rimes.length && rimes.some(function(r){return r!==rimes[0];})) sgBad.push(set.id+': rime/frame mismatch across forms ('+rimes.join(',')+')');
+}
+T('SEGMENT_SETS forms are true minimal pairs ('+SEGMENT_SETS.length+' sets)', sgBad.length===0, sgBad.join(' | '));
+
+// Every word used in the drill must actually be tokenizable/renderable by
+// the app's own Vietnamese-text helpers, and every set must offer at least
+// 2 distinct choices (fewer would make the multiple-choice UI degenerate).
+var sgBad2=[];
+for (var i=0;i<SEGMENT_SETS.length;i++){ var set=SEGMENT_SETS[i];
+  var keys = set.forms.map(function(f){return f.key;});
+  if (new Set(keys).size !== keys.length) sgBad2.push(set.id+': duplicate keys');
+  if (set.forms.length < 2) sgBad2.push(set.id+': fewer than 2 choices');
+  set.forms.forEach(function(f){ if (typeof f.word!=='string' || !f.word.trim()) sgBad2.push(set.id+': empty word'); });
+}
+T('SEGMENT_SETS choices well-formed', sgBad2.length===0, sgBad2.join(' | '));
 
 // ---- PRIMARY_MEANING sanity ----
 var pmBad=[];

@@ -280,6 +280,7 @@ class GrammarModule {
     this.el.input.value = '';
     this.el.input.focus();
     this._refreshStats();
+    this._shownAt = Date.now();   // start of the recall attempt, for rating inference
   }
 
   _submit() {
@@ -296,13 +297,19 @@ class GrammarModule {
   }
 
   _reveal(correct, typed) {
-    const { g, ex, isNew } = this.current;
-    // FSRS update on the grammar point
+    const { g, ex, isNew, retried } = this.current;
+    // FSRS update on the grammar point. Same "type the Vietnamese word/blank"
+    // task as Cloze/Vocab's en-vi direction, so it shares that latency bucket.
+    const rating = (typeof inferRating === 'function')
+      ? inferRating(correct, { latencyMs: Date.now() - (this._shownAt || Date.now()), retried, bucket: 'en-vi' })
+      : (correct ? GOOD : AGAIN);
     const store = _grLoad();
-    store[g.id] = fsrsUpdate(store[g.id] || null, correct);
+    store[g.id] = fsrsUpdate(store[g.id] || null, rating);
     _grSave(store);
     if (isNew) _grBumpNew();
-    if (!correct) this.queue.splice(Math.min(this.queue.length, 4), 0, { g, isNew: false }); // see it again soon
+    // requeued item is marked `retried` so its next pass caps at Hard rather
+    // than reading as confident recall just because it came back quickly
+    if (!correct) this.queue.splice(Math.min(this.queue.length, 4), 0, { g, isNew: false, retried: true }); // see it again soon
 
     this.session.total++;
     if (correct) this.session.correct++;

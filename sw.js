@@ -6,7 +6,7 @@
 // else works offline.
 //
 // Bump CACHE whenever app files change so clients pull the new version.
-const CACHE = 'tiengviet-v17';
+const CACHE = 'tiengviet-v21';
 
 const ASSETS = [
   './',
@@ -19,9 +19,12 @@ const ASSETS = [
   './js/vocab.js',
   './js/basics.js',
   './js/tones.js',
+  './js/segments.js',
   './js/cloze.js',
   './js/grammar.js',
+  './js/chunks.js',
   './js/listening.js',
+  './js/speak.js',
   './js/stats.js',
   './js/reader.js',
   './js/plan.js',

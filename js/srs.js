@@ -1,7 +1,15 @@
 // Spaced repetition system — minimal FSRS (Difficulty/Stability/Retrievability).
 // Reference: Ye 2022 "A Stochastic Shortest Path Algorithm for Optimizing
 // Spaced Repetition Scheduling" (ACM KDD); FSRS-4.5 / FSRS-5 default weights.
-// We use binary grading (pass=3, fail=1) because answer checking is automatic.
+// Answer checking is automatic (no Again/Hard/Good/Easy buttons anywhere in
+// the UI), so the 4-point rating FSRS expects is inferred rather than typed:
+// wrong -> Again; a card just missed and got right again this session ->
+// capped at Hard; otherwise Hard/Good/Easy come from how fast the correct
+// answer came relative to the learner's own recent typing speed for that
+// kind of card (see inferRating below). Response latency reliably tracks
+// retrieval fluency/confidence in the cognitive-psychology literature, but
+// this is a proxy for self-rated confidence, not literally what FSRS was
+// validated against.
 const PROGRESS_KEY = 'vn_progress_v1';
 const PROGRESS_KEY_OLD = 'vn_progress_legacy';
 const DAILY_KEY = 'vn_daily_v1';
@@ -20,12 +28,12 @@ const W = [
   1.4604, 0.0046,                    // w[6..7]   difficulty update + mean reversion
   1.54575, 0.1192, 1.01925,          // w[8..10]  recall-stability growth
   1.9395, 0.11, 0.29605, 2.2698,     // w[11..14] forget-stability (lapse)
-  0.2315, 2.9898,                    // w[15..16] (unused for binary grading)
-  0.51655, 0.6621,                   // w[17..18] (unused for binary grading)
+  0.2315, 2.9898,                    // w[15..16] Hard penalty / Easy bonus
+  0.51655, 0.6621,                   // w[17..18] (short-term/same-day, unused here)
 ];
 const FACTOR = 19 / 81; // FSRS-4.5/5 forgetting-curve factor
 const DECAY  = -0.5;    // FSRS-4.5/5 forgetting-curve decay exponent
-const PASS = 3, FAIL = 1;
+const AGAIN = 1, HARD = 2, GOOD = 3, EASY = 4;
 
 let _progress = null;
 let _daily = null;
@@ -104,18 +112,26 @@ function _initDifficulty(rating) {
   return _clamp(d, 1, 10);
 }
 
-// Mean-revert difficulty toward init_d(4) (the "easy" anchor in FSRS).
+// Mean-revert difficulty toward init_d(EASY) (the "easy" anchor in FSRS).
+// The (10-D)/9 term damps the delta as D approaches its ceiling (a card
+// that's already near-maximum difficulty shouldn't jump the same fixed
+// amount per fail as an easy one does) — only visible once ratings other
+// than Good/Again exist, since delta is 0 for Good regardless.
 function _nextDifficulty(D, rating) {
-  const dDelta = -W[6] * (rating - 3);  // pass(3): 0 change; fail(1): D += 2*w[6]
-  const dNew = D + dDelta;
-  const dRev = W[7] * _initDifficulty(4) + (1 - W[7]) * dNew;
+  const dDelta = -W[6] * (rating - GOOD);  // good(3): 0 change; again(1): +2*w6; hard(2): +w6; easy(4): -w6
+  const dNew = D + dDelta * (10 - D) / 9;
+  const dRev = W[7] * _initDifficulty(EASY) + (1 - W[7]) * dNew;
   return _clamp(dRev, 1, 10);
 }
 
-// Stability after a successful review (FSRS-5 recall formula).
-function _nextRecallS(D, S, R) {
+// Stability after a successful review (FSRS-5 recall formula), with the
+// Hard-penalty (w15, <1) / Easy-bonus (w16, >1) multipliers that were
+// previously unused under binary grading — both are 1 (no-op) for Good.
+function _nextRecallS(D, S, R, rating) {
+  const hardPenalty = rating === HARD ? W[15] : 1;
+  const easyBonus   = rating === EASY ? W[16] : 1;
   const growth = Math.exp(W[8]) * (11 - D) * Math.pow(S, -W[9]) *
-                 (Math.exp(W[10] * (1 - R)) - 1);
+                 (Math.exp(W[10] * (1 - R)) - 1) * hardPenalty * easyBonus;
   return S * (1 + growth);
 }
 
@@ -153,10 +169,12 @@ function isDue(wordId, dir) {
 
 // Compute the next FSRS state for a generic card (vocab, grammar, etc.).
 // `prev` is the existing {D, S, lastReview, nextReview, reps, lapses} or null/undefined.
+// `rating` is 1-4 (Again/Hard/Good/Easy) — see inferRating() for where it
+// comes from, since nothing in the UI asks the learner to pick one directly.
 // Returns the updated card state with new D, S, lastReview, nextReview, reps, lapses.
-function fsrsUpdate(prev, isCorrect, target) {
+function fsrsUpdate(prev, rating, target) {
   const now = Date.now();
-  const rating = isCorrect ? PASS : FAIL;
+  const isCorrect = rating > AGAIN;
   const retentionTarget = (target >= 0.6 && target <= 0.99) ? target : _retentionTarget();
 
   let D, S;
@@ -167,7 +185,7 @@ function fsrsUpdate(prev, isCorrect, target) {
     const daysSince = Math.max(0, (now - prev.lastReview) / DAY_MS);
     const R = _retrievability(daysSince, prev.S);
     D = _nextDifficulty(prev.D, rating);
-    S = isCorrect ? _nextRecallS(D, prev.S, R) : _nextForgetS(D, prev.S, R);
+    S = isCorrect ? _nextRecallS(D, prev.S, R, rating) : _nextForgetS(D, prev.S, R);
   }
 
   const intervalDays = Math.max(1 / 24, _fuzz(_intervalForTarget(S, retentionTarget)));
@@ -180,13 +198,73 @@ function fsrsUpdate(prev, isCorrect, target) {
   };
 }
 
-function recordAnswer(wordId, dir, isCorrect) {
+// ── Rating inference (Again/Hard/Good/Easy from automatic grading) ──
+// Two free signals, no new UI:
+//   - retried: this exact card was already missed once this session and is
+//     being answered again right now — capped at Hard regardless of speed,
+//     since "got it on the second try" isn't confident recall.
+//   - latencyMs vs. the learner's own recent typing speed for this kind of
+//     card ("bucket" — typing English vs. typing Vietnamese are different
+//     tasks with very different typical speeds, so each gets its own
+//     baseline; Vocab/Cloze/Listening/Grammar all share the "type
+//     Vietnamese" bucket since it's the same task). Faster than usual ->
+//     Easy, slower -> Hard, typical -> Good.
+// A personal (not fixed) baseline avoids penalizing naturally slower typists
+// and rewarding naturally fast ones; LATENCY_WARMUP correct answers build it
+// up before it's trusted, during which everything correct grades Good.
+const LATENCY_KEY = 'vn_latency_v1';
+const LATENCY_WARMUP = 8;
+const LATENCY_EASY_RATIO = 0.5;
+const LATENCY_HARD_RATIO = 1.6;
+
+function _loadLatency() {
+  try { return JSON.parse(localStorage.getItem(LATENCY_KEY) || '{}'); } catch { return {}; }
+}
+function _saveLatency(l) { try { localStorage.setItem(LATENCY_KEY, JSON.stringify(l)); } catch {} }
+
+// Exponential moving average of correct-answer latency for a bucket.
+function _updateLatencyBaseline(bucket, latencyMs) {
+  const l = _loadLatency();
+  const b = l[bucket] || { n: 0, ema: latencyMs };
+  b.n++;
+  b.ema = b.n <= 1 ? latencyMs : b.ema * 0.85 + latencyMs * 0.15;
+  l[bucket] = b;
+  _saveLatency(l);
+}
+
+function inferRating(correct, { latencyMs, retried, bucket } = {}) {
+  if (!correct) return AGAIN;
+  if (retried) return HARD;
+
+  let rating = GOOD;
+  const l = _loadLatency();
+  const b = bucket && l[bucket];
+  if (b && b.n >= LATENCY_WARMUP && typeof latencyMs === 'number' && b.ema > 0) {
+    const ratio = latencyMs / b.ema;
+    if (ratio <= LATENCY_EASY_RATIO) rating = EASY;
+    else if (ratio >= LATENCY_HARD_RATIO) rating = HARD;
+  }
+  // Only "clean" answers (correct, not a retry) feed the baseline — retries
+  // and mistakes would drag "normal speed" around for the wrong reason.
+  if (bucket && typeof latencyMs === 'number') _updateLatencyBaseline(bucket, latencyMs);
+  return rating;
+}
+
+// `opts` is optional: { latencyMs, retried, bucket }. `bucket` defaults to
+// `dir` (vi-en/en-vi are already the two typing-task categories) but a
+// caller can override it — e.g. Listening passes its own bucket since that
+// task always includes audio-playback time before typing starts, which
+// would otherwise skew it against Cloze/Vocab's faster baseline. Callers
+// that don't pass opts at all still work exactly as before (every correct
+// answer grades Good, same as the old binary behavior).
+function recordAnswer(wordId, dir, isCorrect, opts) {
   _loadProgress();
   _loadDaily();
 
+  const rating = inferRating(isCorrect, { bucket: dir, ...opts });
   const k = _key(wordId, dir);
   const wasNew = !_progress[k];
-  _progress[k] = fsrsUpdate(_progress[k] ?? null, isCorrect, _retentionTarget());
+  _progress[k] = fsrsUpdate(_progress[k] ?? null, rating, _retentionTarget());
 
   if (wasNew) _daily.newCount++;
   _daily.reviewed++;

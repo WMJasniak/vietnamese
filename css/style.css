@@ -1790,6 +1790,18 @@ main {
 /* New-card highlight (vocab) */
 .card--new { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 1px 3px rgba(0,0,0,0.28); }
 
+/* ── Speak tab ───────────────────────────────────── */
+.sp-meaning { text-align: center; font-size: .85rem; color: var(--dim); margin-top: .25rem; }
+.sp-target { text-align: center; font-size: 1.5rem; font-weight: 700; margin-top: .3rem; }
+.sp-mic.recording { color: var(--incorrect); animation: sp-pulse 1s ease-in-out infinite; }
+@keyframes sp-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+.sp-selfrate { display: flex; gap: .6rem; justify-content: center; margin-top: .75rem; }
+.sp-transcript { font-size: .9rem; color: var(--dim); margin-top: .3rem; }
+.sp-transcript em { color: var(--text); font-style: normal; }
+
 /* ── Tones: easy matching mode ────────────────────── */
 .t-match-chips {
   display: flex;

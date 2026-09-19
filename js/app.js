@@ -1,6 +1,6 @@
 // Vietnamese app — tab routing + module init. Mirrors the Mandarin app's
 // shape but with a leaner feature set (Plan / Vocab / Reader / Stats / Settings).
-const LEARNING_TABS = new Set(['vocab', 'reader', 'tones', 'basics', 'cloze', 'grammar', 'listening']);
+const LEARNING_TABS = new Set(['vocab', 'reader', 'tones', 'segments', 'basics', 'cloze', 'grammar', 'chunks', 'listening', 'speak']);
 
 // Tab metadata for the mobile bottom navigation. `core` items sit in the bar;
 // the rest live behind the "More" button.
@@ -8,9 +8,12 @@ const TAB_NAV = [
   { id: 'plan',      icon: '🗓️', label: 'Plan',   core: true },
   { id: 'vocab',     icon: '🃏', label: 'Vocab',  core: true },
   { id: 'tones',     icon: '🎵', label: 'Tones',  core: true },
+  { id: 'segments',  icon: '👂', label: 'Sounds', core: false },
   { id: 'cloze',     icon: '✏️', label: 'Cloze',  core: true },
   { id: 'listening', icon: '🎧', label: 'Listen', core: true },
+  { id: 'speak',     icon: '🗣️', label: 'Speak',  core: false },
   { id: 'grammar',   icon: '📐', label: 'Grammar', core: false },
+  { id: 'chunks',    icon: '🧩', label: 'Chunks',  core: false },
   { id: 'basics',    icon: '🔤', label: 'Basics', core: false },
   { id: 'reader',    icon: '📚', label: 'Reader', core: false },
   { id: 'stats',     icon: '📊', label: 'Stats',  core: false },
@@ -31,9 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let planModule = null;
   let basicsModule = null;
   let tonesModule = null;
+  let segmentsModule = null;
   let clozeModule = null;
   let grammarModule = null;
+  let chunksModule = null;
   let listeningModule = null;
+  let speakModule = null;
 
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -46,14 +52,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (LEARNING_TABS.has(leaving) && !LEARNING_TABS.has(entering)) flushTime();
       else if (!LEARNING_TABS.has(leaving) && LEARNING_TABS.has(entering)) resumeTimer();
 
+      // Speak holds a live mic stream/recognition session while active —
+      // unlike the other tabs, leaving it mid-attempt must actively release
+      // the microphone rather than just letting the panel go invisible.
+      if (leaving === 'speak' && speakModule) speakModule.deactivate();
+
       if (entering === 'stats'    && statsModule)    statsModule.refresh();
       if (entering === 'reader'   && readerModule)   readerModule.activate();
       if (entering === 'plan'     && planModule)     planModule.activate();
       if (entering === 'basics'   && basicsModule)   basicsModule.activate();
       if (entering === 'tones'    && tonesModule)    tonesModule.activate();
+      if (entering === 'segments' && segmentsModule) segmentsModule.activate();
       if (entering === 'cloze'    && clozeModule)    clozeModule.activate();
       if (entering === 'grammar'  && grammarModule)  grammarModule.activate();
+      if (entering === 'chunks'   && chunksModule)   chunksModule.activate();
       if (entering === 'listening'&& listeningModule)listeningModule.activate();
+      if (entering === 'speak'    && speakModule)    speakModule.activate();
 
       updateBottomNavActive(entering);
     });
@@ -86,14 +100,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const tonesPanel = document.getElementById('tab-tones');
   if (tonesPanel) tonesModule = new TonesModule(tonesPanel);
 
+  const segmentsPanel = document.getElementById('tab-segments');
+  if (segmentsPanel) segmentsModule = new SegmentsModule(segmentsPanel);
+
   const clozePanel = document.getElementById('tab-cloze');
   if (clozePanel) clozeModule = new ClozeModule(clozePanel);
 
   const grammarPanel = document.getElementById('tab-grammar');
   if (grammarPanel) grammarModule = new GrammarModule(grammarPanel);
 
+  const chunksPanel = document.getElementById('tab-chunks');
+  if (chunksPanel) chunksModule = new ChunksModule(chunksPanel);
+
   const listeningPanel = document.getElementById('tab-listening');
   if (listeningPanel) listeningModule = new ListeningModule(listeningPanel);
+
+  const speakPanel = document.getElementById('tab-speak');
+  if (speakPanel) speakModule = new SpeakModule(speakPanel);
 
   const settingsPanel = document.getElementById('tab-settings');
   if (settingsPanel) new SettingsModule(settingsPanel);

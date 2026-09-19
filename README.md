@@ -64,11 +64,30 @@ git push -u origin main
 - **Tones** — ear-training drill: hear a hidden word, identify its tone. The
   correct tone is derived from the word's diacritics, and the hardest tones
   (hỏi / ngã / nặng) come up more often.
+- **Sounds** — Tones' sibling for consonant/vowel contrasts instead of pitch:
+  hear a word, pick which sound it has (t/th/đ, ư/u, ng-/nh-/n-, kh-/h-/c-).
+  Deliberately skips s/x, tr/ch, and d/gi/r — in the Hanoi/Northern
+  pronunciation this app teaches, those are fully merged and sound identical,
+  so there'd be nothing to actually hear; the sounds it drills instead are
+  ones that are both genuinely distinct in that dialect and have no
+  equivalent in English at all.
 - **Cloze** — fill-in-the-blank from real sentences. Reviews words you've
   already seen, in context; productive answers feed the SRS.
 - **Grammar** — beginner grammar points taught through real example sentences,
   drilled as cloze and scheduled by the same FSRS spaced-repetition engine.
+- **Chunks** — formulaic multi-word expressions ("không sao đâu", "ăn cơm
+  chưa") drilled and SRS-scheduled the same way as Grammar, distinct from
+  Vocab's single words and from Basics' 12 static survival phrases. Fluency
+  research treats these as stored and retrieved as a unit rather than
+  composed word-by-word, so they get their own ongoing deck instead of
+  living only inside single-word vocab cards.
 - **Listening** — dictation: hear a word, type what you hear (Telex supported).
+- **Speak** — production practice: hear a model word or sentence, say it back.
+  Where the browser supports Vietnamese speech recognition, it transcribes
+  your attempt and compares it to the target; otherwise it records you and
+  plays your attempt back right after the model so you can judge it by ear.
+  Session-only — not scheduled by the SRS (speech-to-text for a tonal
+  language is too noisy to trust for that).
 - **Vocabulary** — the core flashcard trainer. Two independent card directions
   per word:
   - **vi → en**: see the Vietnamese word, type any English meaning (lenient,
@@ -104,6 +123,7 @@ js/
   vocab.js        Flashcard module, fuzzy answer checking, Vietnamese TTS
   reader.js       Text import/analysis, tokenizer, unknown-word extraction
   sentences.js    Example-sentence lookup over sentences.json
+  speak.js        Speaking-practice tab: ASR/record-and-echo pronunciation drill
   stats.js        Stats dashboard
   plan.js         Timed guided-study sessions
   settings.js     Settings UI + backup export/import
@@ -118,10 +138,16 @@ There are no modules/imports — scripts load in dependency order via plain
 ### Spaced repetition
 
 [js/srs.js](js/srs.js) implements **FSRS-5** (Free Spaced Repetition
-Scheduler) with the published default weights. Because answers are graded
-automatically, it uses binary grading: pass = 3, fail = 1. Each word has two
-separate cards (`vi-en`, `en-vi`) with their own Difficulty/Stability state.
-A failed card is requeued once within the session. New cards are introduced up
+Scheduler) with the published default weights, including the full 4-point
+Again/Hard/Good/Easy rating (not just pass/fail). Since nothing in the UI
+asks the learner to pick one of those buttons — grading is automatic —
+`inferRating()` derives it instead: wrong answers are Again; a card just
+missed and then answered correctly again this session is capped at Hard;
+otherwise Hard/Good/Easy come from how fast the correct answer came
+relative to the learner's own recent typing speed for that kind of card
+(a personal, not fixed, baseline). Each word has two separate cards
+(`vi-en`, `en-vi`) with their own Difficulty/Stability state. A failed card
+is requeued once within the session. New cards are introduced up
 to a daily limit, with a Reader-driven **priority queue** so words from texts
 you've pasted jump the line.
 
@@ -186,19 +212,28 @@ acquisition research:
 - **Interleaving** — mixing skills/modalities within a session aids retention →
   the Plan interleaves tones, vocab, cloze, listening, and reading.
 - **High-Variability Phonetic Training (HVPT)** — the best-supported method for
-  L2 tone perception (varied talkers/words + immediate feedback) → the Tones
-  drill uses varied words, rotating TTS voices, and instant feedback.
+  L2 sound perception (varied talkers/words + immediate feedback) → both the
+  Tones drill (pitch) and the Sounds drill (consonants/vowels) use varied
+  words, rotating TTS voices, and instant feedback.
 - **Vietnamese tone difficulty** — hỏi/ngã and nặng are hardest for learners, so
   the Tones drill over-samples them.
 - **Dictation / output hypothesis** — combining listening with production aids
   acquisition → the Listening mode.
+- **ASR-assisted pronunciation training** — a meta-analysis found a large effect
+  on segmental accuracy (consonants/vowels) and a small one on suprasegmentals
+  (tone) → the Speak mode targets segmental production specifically, as the
+  complement to Tones' perception-focused HVPT drill.
 - **Comprehensible input (95–98% coverage)** — validates the Reader's
   coverage-target slicing and the in-context Cloze approach.
+- **Formulaic sequences** — multi-word expressions are stored/retrieved as a
+  unit rather than composed word-by-word, and are a strong predictor of
+  fluency (Wray 2002; Nation) → the Chunks mode gives them their own
+  SRS-scheduled deck instead of only ever appearing inside single-word cards.
 
 See the conversation/commit history for the specific papers consulted.
 
 ## Status
 
-Learning modules built: Basics, Vocabulary, Tones, Cloze, Listening, Reader.
-The codebase was adapted from a sibling Mandarin app. A grammar module is a
-natural next addition.
+Learning modules built: Basics, Vocabulary, Tones, Sounds, Cloze, Grammar,
+Chunks, Listening, Speak, Reader. The codebase was adapted from a sibling
+Mandarin app.

@@ -133,6 +133,7 @@ class ClozeModule {
     this.el.input.value = '';
     this.el.input.focus();
     this._refreshStats();
+    this._shownAt = Date.now();   // start of the recall attempt, for rating inference
   }
 
   _submit() {
@@ -153,7 +154,9 @@ class ClozeModule {
     const { word } = this.current;
     this.session.total++;
     if (correct) this.session.correct++;
-    if (typeof recordAnswer === 'function') recordAnswer(word.id, 'en-vi', correct);
+    if (typeof recordAnswer === 'function') {
+      recordAnswer(word.id, 'en-vi', correct, { latencyMs: Date.now() - (this._shownAt || Date.now()) });
+    }
 
     const ex = this.current.ex;
     const full = (typeof highlightTarget === 'function')

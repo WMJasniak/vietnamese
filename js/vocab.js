@@ -381,6 +381,7 @@ class VocabModule {
     this.el.input.value = '';
     this.el.input.focus();
     if (speakWord) speakVi(speakWord);
+    this._shownAt = Date.now();   // start of the recall attempt, for rating inference
   }
 
   _submit() {
@@ -397,6 +398,7 @@ class VocabModule {
     // result without double-counting the SRS card or the daily stats.
     this.current.typed = raw;
     this.current.result = correct;
+    this.current.latencyMs = Date.now() - (this._shownAt || Date.now());
     this._showFeedback(correct, word, direction, raw);
   }
 
@@ -431,7 +433,10 @@ class VocabModule {
     if (!this._pending || !this.current) return;
     this._pending = false;
     const { word, direction, result } = this.current;
-    recordAnswer(word.id, direction, !!result);
+    recordAnswer(word.id, direction, !!result, {
+      latencyMs: this.current.latencyMs,
+      retried: this.current.requeueCount > 0,   // already missed this card once this session
+    });
     if (!result && !(this.current.requeueCount > 0)) {
       this.current.requeueCount = (this.current.requeueCount || 0) + 1;
       // Reinsert a few cards ahead (not at the very end) so a missed word comes
