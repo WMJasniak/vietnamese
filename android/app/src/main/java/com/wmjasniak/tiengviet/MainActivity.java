@@ -3,10 +3,17 @@ package com.wmjasniak.tiengviet;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.speech.tts.TextToSpeech;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
@@ -26,7 +33,12 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.webkit.WebViewAssetLoader;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
@@ -44,6 +56,15 @@ public class MainActivity extends Activity {
     private static final int BACKUP_SAVE_REQUEST = 1002;
     private static final int MIC_PERMISSION_REQUEST = 1003;
 
+    // Update check/download: a small static version marker plus the same APK
+    // URL the manual GitHub download uses, so "check for updates" is one tiny
+    // fetch and "update" is the same file a browser would have downloaded.
+    private static final String UPDATE_VERSION_URL =
+            "https://github.com/WMJasniak/vietnamese/releases/download/android-latest/version.txt";
+    private static final String UPDATE_APK_URL =
+            "https://github.com/WMJasniak/vietnamese/releases/download/android-latest/tiengviet.apk";
+    private static final String UPDATE_APK_FILENAME = "tiengviet-update.apk";
+
     private WebView web;
     private ValueCallback<Uri[]> filePathCallback;
     private String pendingBackupJson;
@@ -54,6 +75,9 @@ public class MainActivity extends Activity {
 
     private TextToSpeech tts;
     private volatile boolean ttsLangOk = false;
+
+    private long pendingUpdateDownloadId = -1;
+    private BroadcastReceiver updateDownloadReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -171,6 +195,21 @@ public class MainActivity extends Activity {
         });
         web.addJavascriptInterface(new TtsBridge(), "AndroidTTS");
         web.addJavascriptInterface(new BackupBridge(), "AndroidBackup");
+        web.addJavascriptInterface(new UpdateBridge(), "AndroidUpdater");
+
+        updateDownloadReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                if (id == pendingUpdateDownloadId) handleUpdateDownloadComplete(id);
+            }
+        };
+        IntentFilter downloadFilter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(updateDownloadReceiver, downloadFilter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(updateDownloadReceiver, downloadFilter);
+        }
 
         web.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
     }
@@ -228,7 +267,58 @@ public class MainActivity extends Activity {
             tts.shutdown();
             tts = null;
         }
+        if (updateDownloadReceiver != null) {
+            try { unregisterReceiver(updateDownloadReceiver); } catch (Exception ignored) {}
+            updateDownloadReceiver = null;
+        }
         super.onDestroy();
+    }
+
+    // ── Update check/download ────────────────────────────
+    // Calls a window.__onUpdate*() callback in JS (app.js) to report results —
+    // mirrors the pattern below rather than returning values synchronously,
+    // since both the version check and the download are necessarily async.
+    private void notifyJs(String fnName, String rawJsArgs) {
+        runOnUiThread(() -> {
+            if (web != null) {
+                web.evaluateJavascript(
+                        "if (window." + fnName + ") window." + fnName + "(" + rawJsArgs + ");", null);
+            }
+        });
+    }
+
+    private static String jsonStr(String s) {
+        if (s == null) return "null";
+        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", " ").replace("\r", "") + "\"";
+    }
+
+    private void handleUpdateDownloadComplete(long id) {
+        pendingUpdateDownloadId = -1;
+        DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        if (dm == null) { notifyJs("__onUpdateError", jsonStr("Download service unavailable")); return; }
+        try (Cursor c = dm.query(new DownloadManager.Query().setFilterById(id))) {
+            if (c != null && c.moveToFirst()) {
+                int status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
+                if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                    try {
+                        Uri apkUri = dm.getUriForDownloadedFile(id);
+                        Intent intent = new Intent(Intent.ACTION_VIEW);
+                        intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        startActivity(intent);
+                    } catch (Exception e) {
+                        notifyJs("__onUpdateError", jsonStr("Couldn't open installer: " + e.getMessage()));
+                    }
+                } else {
+                    int reasonIdx = c.getColumnIndex(DownloadManager.COLUMN_REASON);
+                    int reason = reasonIdx >= 0 ? c.getInt(reasonIdx) : -1;
+                    notifyJs("__onUpdateError", jsonStr("Download failed (code " + reason + ")"));
+                }
+            } else {
+                notifyJs("__onUpdateError", jsonStr("Download record not found"));
+            }
+        }
     }
 
     /** Bridge object callable from JS as window.AndroidTTS.*  */
@@ -279,6 +369,60 @@ public class MainActivity extends Activity {
                 } catch (Exception e) {
                     pendingBackupJson = null;
                     Toast.makeText(MainActivity.this, "Couldn't open the save dialog", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+    }
+
+    /** Bridge for in-app update check/download, exposed to JS as
+     *  window.AndroidUpdater.* — see js/app.js for the JS-side half
+     *  (the window.__onUpdate* callbacks this calls into). */
+    private class UpdateBridge {
+        @JavascriptInterface
+        public void checkForUpdate() {
+            new Thread(() -> {
+                HttpURLConnection conn = null;
+                try {
+                    conn = (HttpURLConnection) new URL(UPDATE_VERSION_URL).openConnection();
+                    conn.setConnectTimeout(8000);
+                    conn.setReadTimeout(8000);
+                    conn.setInstanceFollowRedirects(true);
+                    int code = conn.getResponseCode();
+                    if (code != 200) throw new Exception("HTTP " + code);
+                    String latestLine;
+                    try (BufferedReader r = new BufferedReader(
+                            new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                        latestLine = r.readLine();
+                    }
+                    int latest = Integer.parseInt(latestLine.trim());
+                    int current = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+                    notifyJs("__onUpdateCheck", latest + "," + current);
+                } catch (Exception e) {
+                    notifyJs("__onUpdateError",
+                            jsonStr("Couldn't check for updates: " + e.getMessage()));
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void downloadAndInstall() {
+            runOnUiThread(() -> {
+                try {
+                    File dest = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), UPDATE_APK_FILENAME);
+                    if (dest.exists()) dest.delete();   // DownloadManager refuses to overwrite
+
+                    DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                    DownloadManager.Request req = new DownloadManager.Request(Uri.parse(UPDATE_APK_URL));
+                    req.setTitle("Tiếng Việt update");
+                    req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    req.setDestinationInExternalFilesDir(
+                            MainActivity.this, Environment.DIRECTORY_DOWNLOADS, UPDATE_APK_FILENAME);
+                    pendingUpdateDownloadId = dm.enqueue(req);
+                    notifyJs("__onUpdateDownloadStarted", "");
+                } catch (Exception e) {
+                    notifyJs("__onUpdateError", jsonStr("Couldn't start the download: " + e.getMessage()));
                 }
             });
         }

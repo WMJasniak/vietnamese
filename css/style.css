@@ -946,6 +946,39 @@ main {
   transform: translateX(-50%) translateY(0);
 }
 
+/* ── Android in-app update banner ──────────────────── */
+.update-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .6rem 1rem;
+  padding-top: calc(.6rem + env(safe-area-inset-top, 0px));
+  background: var(--accent);
+  color: #fff;
+  font-size: .85rem;
+  font-weight: 600;
+}
+.update-banner span { flex: 1; }
+.update-banner .btn {
+  padding: .3rem .9rem;
+  font-size: .8rem;
+  background: #fff;
+  color: var(--accent);
+}
+.update-banner-x {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1rem;
+  padding: .2rem .4rem;
+  cursor: pointer;
+  opacity: .85;
+}
+.update-banner-x:hover { opacity: 1; }
+
 /* ── Tone guide ─────────────────────────────────── */
 .tone-guide {
   background: var(--surface);

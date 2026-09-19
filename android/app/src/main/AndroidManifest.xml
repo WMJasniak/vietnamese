@@ -11,6 +11,10 @@
          access the way a full browser app does. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <!-- Settings → Check for updates: lets the app launch the system
+         installer for an APK it downloaded itself, instead of the user
+         going through a browser download + file manager each time. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="true"

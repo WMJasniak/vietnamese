@@ -2,6 +2,10 @@ class SettingsModule {
   constructor(container) {
     this.container = container;
     this._build();
+    // The auto-check-on-launch (app.js) runs async and may resolve after
+    // this tab has already rendered, so listen rather than only reading
+    // updateState once at build time.
+    document.addEventListener('vn-update-status', () => this._refreshUpdateStatus());
   }
 
   _build() {
@@ -87,6 +91,17 @@ class SettingsModule {
           </div>
         </div>
       </section>
+
+      ${window.AndroidUpdater ? `
+      <section class="stats-section">
+        <div class="stats-h">App Updates</div>
+        <div class="setting-row">
+          <span class="setting-label" id="s-update-status">${this._updateStatusText()}</span>
+          <button class="btn" id="s-update-check">Check for updates</button>
+        </div>
+        <button class="btn hidden" id="s-update-install" type="button">Download &amp; install update</button>
+      </section>
+      ` : ''}
 
       <section class="stats-section">
         <div class="stats-h">Backup &amp; Restore</div>
@@ -177,6 +192,31 @@ class SettingsModule {
       if (file) this._import(file);
       e.target.value = '';
     });
+
+    if (window.AndroidUpdater) {
+      this.container.querySelector('#s-update-check').addEventListener('click', () => {
+        this.container.querySelector('#s-update-status').textContent = 'Checking…';
+        checkForAndroidUpdate();
+      });
+      this.container.querySelector('#s-update-install').addEventListener('click', () => downloadAndroidUpdate());
+    }
+  }
+
+  // updateState/checkForAndroidUpdate/downloadAndroidUpdate live in app.js —
+  // this tab is just a second UI (besides the launch-time banner) onto the
+  // same state, so there's one update code path, not two.
+  _updateStatusText() {
+    if (typeof updateState === 'undefined' || !updateState.checked) return 'Not checked yet';
+    if (updateState.error) return updateState.error;
+    if (updateState.available) return `Update available: v${updateState.latest} (you have v${updateState.current})`;
+    return `You're up to date (v${updateState.current})`;
+  }
+
+  _refreshUpdateStatus() {
+    const el = this.container.querySelector('#s-update-status');
+    if (!el) return;   // Settings tab not currently mounted/rebuilt
+    el.textContent = this._updateStatusText();
+    this.container.querySelector('#s-update-install')?.classList.toggle('hidden', !updateState.available);
   }
 
   _export() {

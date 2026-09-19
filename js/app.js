@@ -124,6 +124,12 @@ document.addEventListener('DOMContentLoaded', () => {
   buildBottomNav();
   updateBottomNavActive('plan');
 
+  // One small version-marker fetch, not the whole APK — cheap enough to run
+  // on every launch. No-op outside the Android app (window.AndroidUpdater
+  // only exists there); Settings' manual "Check for updates" reuses this
+  // same function.
+  checkForAndroidUpdate();
+
   // Keep the focused answer field visible above the on-screen keyboard.
   document.addEventListener('focusin', e => {
     const el = e.target;
@@ -229,4 +235,50 @@ function showToast(msg) {
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add('toast--show'));
   setTimeout(() => { el.classList.remove('toast--show'); setTimeout(() => el.remove(), 400); }, 3500);
+}
+
+// ── Android in-app updates ──────────────────────────────
+// window.AndroidUpdater only exists inside the native Android wrapper (see
+// MainActivity.UpdateBridge) — every function here is a no-op elsewhere
+// (desktop/PWA), so the rest of the app never needs to feature-detect this
+// itself. Settings' "Check for updates" button calls the same two functions
+// this file's auto-check-on-launch uses, so there's one code path total.
+const updateState = { checked: false, available: false, latest: null, current: null, error: null };
+
+function checkForAndroidUpdate() {
+  if (window.AndroidUpdater?.checkForUpdate) window.AndroidUpdater.checkForUpdate();
+}
+
+function downloadAndroidUpdate() {
+  if (window.AndroidUpdater?.downloadAndInstall) window.AndroidUpdater.downloadAndInstall();
+}
+
+// Called from MainActivity.UpdateBridge.checkForUpdate()'s background thread.
+window.__onUpdateCheck = (latest, current) => {
+  Object.assign(updateState, { checked: true, latest, current, available: latest > current, error: null });
+  document.dispatchEvent(new CustomEvent('vn-update-status'));
+  if (updateState.available) _showUpdateBanner();
+};
+
+window.__onUpdateError = (msg) => {
+  Object.assign(updateState, { checked: true, error: msg });
+  document.dispatchEvent(new CustomEvent('vn-update-status'));
+};
+
+window.__onUpdateDownloadStarted = () => {
+  showToast('Downloading update…');
+};
+
+function _showUpdateBanner() {
+  if (document.querySelector('.update-banner')) return;
+  const el = document.createElement('div');
+  el.className = 'update-banner';
+  el.innerHTML = `
+    <span>Update available (v${esc(String(updateState.latest))})</span>
+    <button class="btn" id="ub-update" type="button">Update</button>
+    <button class="update-banner-x" id="ub-dismiss" type="button" aria-label="Dismiss">✕</button>
+  `;
+  document.body.appendChild(el);
+  el.querySelector('#ub-update').addEventListener('click', () => { downloadAndroidUpdate(); el.remove(); });
+  el.querySelector('#ub-dismiss').addEventListener('click', () => el.remove());
 }

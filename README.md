@@ -52,6 +52,20 @@ git branch -M main
 git push -u origin main
 ```
 
+## Android app
+
+[.github/workflows/android.yml](.github/workflows/android.yml) wraps the same
+static site in a thin native WebView shell ([android/](android/)) and
+publishes a signed APK to the repo's `android-latest` GitHub Release on every
+push to `main`. **Settings → Check for updates** lets the installed app pull
+new builds directly — no manual re-download needed: it fetches a small
+version marker on launch (and on demand), and if a newer build exists,
+downloads the APK and hands off to the system installer (which still asks for
+one confirmation tap — Android doesn't allow silent self-update). See
+[MainActivity.java](android/app/src/main/java/com/wmjasniak/tiengviet/MainActivity.java)'s
+`UpdateBridge` for the native half and `checkForAndroidUpdate()` in
+[js/app.js](js/app.js) for the JS half.
+
 ## Features
 
 - **Plan** — a timed, guided study session. Set minutes per segment; it counts

@@ -65,6 +65,13 @@ jobs:
       - name: Rename APK
         run: cp android/app/build/outputs/apk/release/app-release.apk tiengviet.apk
 
+      # A tiny sidecar the app itself fetches to check for updates, so it
+      # doesn't have to download the whole APK just to learn a newer one
+      # exists. Kept as its own file (not e.g. parsed from a redirect or the
+      # release API) so the in-app check is a single small static fetch.
+      - name: Write version marker
+        run: echo -n "${{ github.run_number }}" > version.txt
+
       - name: Upload as workflow artifact
         uses: actions/upload-artifact@v4
         with:
@@ -79,5 +86,8 @@ jobs:
           body: |
             Latest debug-signed APK of the Tiếng Việt app.
             Install on Android: download `tiengviet.apk`, open it, and allow
-            installing from this source if prompted.
-          files: tiengviet.apk
+            installing from this source if prompted. The app itself can also
+            check for and install updates from Settings.
+          files: |
+            tiengviet.apk
+            version.txt
