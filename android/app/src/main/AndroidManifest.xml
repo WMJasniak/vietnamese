@@ -5,6 +5,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- navigator.vibrate() (correct-answer haptic) is a no-op without this. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Speak tab: getUserMedia()/SpeechRecognition from the WebView need both
+         this manifest permission AND a runtime grant (handled in
+         MainActivity's onPermissionRequest) — WebView doesn't forward mic
+         access the way a full browser app does. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <application
         android:allowBackup="true"

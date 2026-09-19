@@ -1,14 +1,17 @@
 package com.wmjasniak.tiengviet;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
+import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -19,6 +22,8 @@ import android.webkit.WebViewClient;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.webkit.WebViewAssetLoader;
 
 import java.io.OutputStream;
@@ -37,10 +42,15 @@ public class MainActivity extends Activity {
 
     private static final int FILE_CHOOSER_REQUEST = 1001;
     private static final int BACKUP_SAVE_REQUEST = 1002;
+    private static final int MIC_PERMISSION_REQUEST = 1003;
 
     private WebView web;
     private ValueCallback<Uri[]> filePathCallback;
     private String pendingBackupJson;
+    // The WebView's own mic permission prompt (Speak tab's getUserMedia/
+    // SpeechRecognition) — held here while we go ask the OS-level runtime
+    // permission, then resolved from onRequestPermissionsResult.
+    private PermissionRequest pendingWebPermissionRequest;
 
     private TextToSpeech tts;
     private volatile boolean ttsLangOk = false;
@@ -127,6 +137,29 @@ public class MainActivity extends Activity {
                         .show();
                 return true;
             }
+
+            // The Speak tab's getUserMedia()/SpeechRecognition calls surface here as
+            // a WebView-level permission request, separate from (and in addition to)
+            // the OS runtime permission below — both have to say yes.
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                runOnUiThread(() -> {
+                    boolean wantsAudio = false;
+                    for (String resource : request.getResources()) {
+                        if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)) wantsAudio = true;
+                    }
+                    if (!wantsAudio) { request.deny(); return; }   // e.g. camera — unused, don't grant
+
+                    if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO)
+                            == PackageManager.PERMISSION_GRANTED) {
+                        request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+                    } else {
+                        pendingWebPermissionRequest = request;
+                        ActivityCompat.requestPermissions(MainActivity.this,
+                                new String[]{Manifest.permission.RECORD_AUDIO}, MIC_PERMISSION_REQUEST);
+                    }
+                });
+            }
         });
 
         // Native Vietnamese TTS, exposed to JS as window.AndroidTTS.
@@ -140,6 +173,19 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new BackupBridge(), "AndroidBackup");
 
         web.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != MIC_PERMISSION_REQUEST || pendingWebPermissionRequest == null) return;
+        PermissionRequest req = pendingWebPermissionRequest;
+        pendingWebPermissionRequest = null;
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            req.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+        } else {
+            req.deny();
+        }
     }
 
     @Override
