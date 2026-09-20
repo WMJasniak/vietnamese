@@ -24,7 +24,6 @@ class ClozeModule {
     this.words = [];
     this.queue = [];
     this.current = null;
-    this.session = { correct: 0, total: 0 };
     this._ready = false;
   }
   init() {}
@@ -152,8 +151,6 @@ class ClozeModule {
 
   _reveal(correct, typed) {
     const { word } = this.current;
-    this.session.total++;
-    if (correct) this.session.correct++;
     if (typeof recordAnswer === 'function') {
       recordAnswer(word.id, 'en-vi', correct, { latencyMs: Date.now() - (this._shownAt || Date.now()) });
     }
@@ -195,11 +192,8 @@ class ClozeModule {
   }
 
   _refreshStats() {
-    const acc = this.session.total ? Math.round(this.session.correct / this.session.total * 100) : '—';
     this.el.stats.innerHTML = `
       <div class="stat"><div class="sv">${this.queue.length}</div><div class="sl">Remaining</div></div>
-      <div class="stat"><div class="sv">${this.session.correct}/${this.session.total}</div><div class="sl">Correct</div></div>
-      <div class="stat"><div class="sv">${acc}${this.session.total ? '%' : ''}</div><div class="sl">Accuracy</div></div>
     `;
   }
 }

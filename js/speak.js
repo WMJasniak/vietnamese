@@ -15,10 +15,9 @@
 //     recording back immediately after the model audio, so the learner can
 //     self-judge by ear (a "shadow and echo" fallback) instead of relying on
 //     unreliable Vietnamese ASR.
-// Session-only stats: ASR transcription for a tonal language is noisy enough
-// that we don't want it corrupting the FSRS vocabulary schedule, so results
-// here aren't written back to srs.js — this is supplementary output
-// practice, not graded review.
+// ASR transcription for a tonal language is noisy enough that we don't want
+// it corrupting the FSRS vocabulary schedule, so results here aren't written
+// back to srs.js — this is supplementary output practice, not graded review.
 
 class SpeakModule {
   constructor(container) {
@@ -32,7 +31,6 @@ class SpeakModule {
     this.mediaRecorder = null;
     this.recordedChunks = [];
     this.recording = false;
-    this.session = { correct: 0, total: 0 };
     this._ready = false;
   }
   init() {}
@@ -80,7 +78,6 @@ class SpeakModule {
 
   _build() {
     this.container.innerHTML = `
-      <div class="stats-bar" id="sp-stats"></div>
       <div class="card" id="sp-card">
         <div class="card-meta"><span class="card-dir">Say it out loud</span></div>
         <div class="sp-meaning" id="sp-meaning"></div>
@@ -100,7 +97,6 @@ class SpeakModule {
       <div id="sp-unsupported" class="stats-placeholder hidden"></div>
     `;
     this.el = {
-      stats: this.container.querySelector('#sp-stats'),
       card: this.container.querySelector('#sp-card'),
       meaning: this.container.querySelector('#sp-meaning'),
       target: this.container.querySelector('#sp-target'),
@@ -121,7 +117,6 @@ class SpeakModule {
     this.el.next.addEventListener('click', () => this._advance());
     if (this.mode === 'record') this._showNote(
       "Speech recognition for Vietnamese isn't available here — recording your voice instead so you can compare it to the model.");
-    this._refreshStats();
   }
 
   _showNote(msg) {
@@ -293,8 +288,6 @@ class SpeakModule {
   // ── Shared ───────────────────────────────────────────
   _reveal(correct, extraHtml) {
     this._answered = true;
-    this.session.total++;
-    if (correct) this.session.correct++;
     if (correct) window.celebrateCorrect?.();
 
     this.el.selfrate.classList.add('hidden');
@@ -306,21 +299,12 @@ class SpeakModule {
       <div class="fb-word"><div class="fb-chars">${esc(this._targetText(this.current))}</div></div>
     `;
     this.el.next.classList.remove('hidden');
-    this._refreshStats();
   }
 
   // No text input/Enter handling in this tab (unlike Cloze/Listening), so
   // there's no keyup-double-fires-Next risk to guard against here — a
   // straight click handler is enough.
   _advance() { this._next(); }
-
-  _refreshStats() {
-    const acc = this.session.total ? Math.round(this.session.correct / this.session.total * 100) : '—';
-    this.el.stats.innerHTML = `
-      <div class="stat"><div class="sv">${this.session.correct}/${this.session.total}</div><div class="sl">Sounded right</div></div>
-      <div class="stat"><div class="sv">${acc}${this.session.total ? '%' : ''}</div><div class="sl">Rate</div></div>
-    `;
-  }
 
   _err(msg) {
     this.container.innerHTML = `<p class="stats-placeholder">${esc(msg)}<br><br>Open the Vocabulary tab once to load words, then come back.</p>`;

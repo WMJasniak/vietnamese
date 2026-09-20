@@ -181,7 +181,6 @@ class GrammarModule {
     this.container = container;
     this.queue = [];
     this.current = null;
-    this.session = { correct: 0, total: 0 };
     this._built = false;
   }
   init() {}
@@ -311,9 +310,6 @@ class GrammarModule {
     // than reading as confident recall just because it came back quickly
     if (!correct) this.queue.splice(Math.min(this.queue.length, 4), 0, { g, isNew: false, retried: true }); // see it again soon
 
-    this.session.total++;
-    if (correct) this.session.correct++;
-
     const full = (typeof highlightTarget === 'function') ? highlightTarget(ex.vi, ex.blank) : esc(ex.vi);
     this.el.rule.innerHTML = `<div class="gr-title">${esc(g.title)}</div><div class="gr-explain">${esc(g.explain)}</div>`;
     this.el.rule.classList.remove('hidden');
@@ -351,11 +347,9 @@ class GrammarModule {
   _refreshStats() {
     const store = _grLoad();
     const known = GRAMMAR.filter(g => store[g.id] && store[g.id].S >= 7).length;
-    const acc = this.session.total ? Math.round(this.session.correct / this.session.total * 100) : '—';
     this.el.stats.innerHTML = `
       <div class="stat"><div class="sv">${this.queue.length}</div><div class="sl">Remaining</div></div>
       <div class="stat"><div class="sv">${known}/${GRAMMAR.length}</div><div class="sl">Learned</div></div>
-      <div class="stat"><div class="sv">${acc}${this.session.total ? '%' : ''}</div><div class="sl">Accuracy</div></div>
     `;
   }
 }

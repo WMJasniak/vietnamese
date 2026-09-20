@@ -107,7 +107,6 @@ class ChunksModule {
     this.container = container;
     this.queue = [];
     this.current = null;
-    this.session = { correct: 0, total: 0 };
     this._built = false;
   }
   init() {}
@@ -235,9 +234,6 @@ class ChunksModule {
     if (isNew) _chBumpNew();
     if (!correct) this.queue.splice(Math.min(this.queue.length, 4), 0, { c, isNew: false, retried: true }); // see it again soon
 
-    this.session.total++;
-    if (correct) this.session.correct++;
-
     const full = (typeof highlightTarget === 'function') ? highlightTarget(ex.vi, c.chunk) : esc(ex.vi);
     this.el.rule.innerHTML = `<div class="gr-title">${esc(c.chunk)}</div><div class="gr-explain">${esc(c.en)}</div>`;
     this.el.rule.classList.remove('hidden');
@@ -273,11 +269,9 @@ class ChunksModule {
   _refreshStats() {
     const store = _chLoad();
     const known = CHUNKS.filter(c => store[c.id] && store[c.id].S >= 7).length;
-    const acc = this.session.total ? Math.round(this.session.correct / this.session.total * 100) : '—';
     this.el.stats.innerHTML = `
       <div class="stat"><div class="sv">${this.queue.length}</div><div class="sl">Remaining</div></div>
       <div class="stat"><div class="sv">${known}/${CHUNKS.length}</div><div class="sl">Learned</div></div>
-      <div class="stat"><div class="sv">${acc}${this.session.total ? '%' : ''}</div><div class="sl">Accuracy</div></div>
     `;
   }
 }

@@ -1,7 +1,8 @@
 // Tones drill — train the six Vietnamese tones, with 3 difficulty modes
 // (Settings → Tone drill difficulty):
-//   easy   — match each of a syllable's six tone forms to its tone name (you
-//            see the marks and can hear each; learn the tone↔mark mapping).
+//   easy   — 6 unlabeled sound buttons (audio only) vs. 6 boxes showing a
+//            syllable's six spelled/marked forms; match each sound to the
+//            written form it belongs to (tone↔mark mapping, not tone names).
 //   medium — see the bare syllable (no tone mark) + hear it, then pick the tone.
 //   hard   — audio only, pick the tone (pure ear training).
 // Tone is derived from the word's diacritics, so no special data is needed.
@@ -40,7 +41,6 @@ class TonesModule {
     this.byTone = {};
     this.current = null;
     this.answered = false;
-    this.session = { correct: 0, total: 0 };
     this.mode = null;
   }
   init() {}
@@ -75,15 +75,6 @@ class TonesModule {
     else this._buildChoose();
   }
 
-  _refreshStats() {
-    const acc = this.session.total ? Math.round(this.session.correct / this.session.total * 100) : '—';
-    if (!this.el || !this.el.stats) return;
-    this.el.stats.innerHTML = `
-      <div class="stat"><div class="sv">${this.session.correct}/${this.session.total}</div><div class="sl">This session</div></div>
-      <div class="stat"><div class="sv">${acc}${this.session.total ? '%' : ''}</div><div class="sl">Accuracy</div></div>
-    `;
-  }
-
   _recordTone(tone, correct) {
     let data = {};
     try { data = JSON.parse(localStorage.getItem(TONES_KEY) || '{}'); } catch {}
@@ -97,7 +88,6 @@ class TonesModule {
   _buildChoose() {
     const isMedium = this.mode === 'medium';
     this.container.innerHTML = `
-      <div class="stats-bar" id="t-stats"></div>
       <div class="card t-card">
         <div class="card-meta"><span class="card-dir">${isMedium ? 'See the syllable, pick the tone you hear' : 'Which tone do you hear?'}</span></div>
         <div class="t-play-row">
@@ -111,7 +101,6 @@ class TonesModule {
       </div>
     `;
     this.el = {
-      stats: this.container.querySelector('#t-stats'),
       play: this.container.querySelector('#t-play'),
       prompt: this.container.querySelector('#t-prompt'),
       reveal: this.container.querySelector('#t-reveal'),
@@ -126,7 +115,6 @@ class TonesModule {
       const btn = e.target.closest('.t-choice');
       if (btn && !this.answered) this._answerChoose(btn.dataset.tone);
     });
-    this._refreshStats();
     this._nextChoose();
   }
 
@@ -166,8 +154,6 @@ class TonesModule {
     this.answered = true;
     const truth = detectVietnameseTone(this.current.word);
     const correct = picked === truth;
-    this.session.total++;
-    if (correct) this.session.correct++;
     this._recordTone(truth, correct);
     if (correct) window.celebrateCorrect?.();
 
@@ -182,13 +168,11 @@ class TonesModule {
       meaning ? `<span class="t-reveal-meta">${esc(meaning)}</span>` : ''}`;
     this.el.next.classList.remove('hidden');
     this.el.next.focus();
-    this._refreshStats();
   }
 
   // ── Easy matching mode ─────────────────────────────────
   _buildMatch() {
     this.container.innerHTML = `
-      <div class="stats-bar" id="t-stats"></div>
       <div class="card t-card">
         <div class="card-meta"><span class="card-dir">Listen to each, then match it to its tone</span></div>
         <div class="t-match-chips" id="t-chips"></div>
@@ -197,13 +181,11 @@ class TonesModule {
       </div>
     `;
     this.el = {
-      stats: this.container.querySelector('#t-stats'),
       chips: this.container.querySelector('#t-chips'),
       slots: this.container.querySelector('#t-slots'),
       next: this.container.querySelector('#t-next'),
     };
     this.el.next.addEventListener('click', () => this._nextMatch());
-    this._refreshStats();
     this._nextMatch();
   }
 
@@ -215,14 +197,15 @@ class TonesModule {
     for (let i = forms.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [forms[i], forms[j]] = [forms[j], forms[i]]; }
 
     this.el.next.classList.add('hidden');
-    // Show the bare syllable (no tone mark) so you must match by EAR, not by
-    // reading the diacritic. The marked form is revealed in the slot on a match.
-    const bare = typeof stripDiacritics === 'function' ? stripDiacritics(forms[0].form) : forms[0].form;
-    this.el.chips.innerHTML = forms.map((f, i) =>
-      `<button class="t-chip" type="button" data-tone="${f.tone}" data-form="${esc(f.form)}">${esc(bare)} <span class="t-chip-n">${i + 1}</span> 🔊</button>`).join('');
+    // Sound buttons carry no text at all — purely audio, so matching has to
+    // go by ear. The boxes show the actual spelled forms (with tone marks)
+    // rather than abstract tone names, since reading the marks is the
+    // useful skill, not memorizing "ngang"/"huyền"/etc.
+    this.el.chips.innerHTML = forms.map(f =>
+      `<button class="t-chip" type="button" data-tone="${f.tone}" data-form="${esc(f.form)}" aria-label="Play sound">🔊</button>`).join('');
     this.el.slots.innerHTML = TONE_DEFS.map(t =>
       `<button class="t-slot" type="button" data-tone="${t.id}">
-         <span class="t-slot-name">${esc(t.name)}</span><span class="t-slot-en">${esc(t.en)}</span>
+         <span class="t-slot-form">${esc(this.current[t.id])}</span>
        </button>`).join('');
 
     this.el.chips.querySelectorAll('.t-chip').forEach(c =>
@@ -242,20 +225,15 @@ class TonesModule {
     if (!this._sel || slot.classList.contains('t-slot--filled')) return;
     const chip = this._sel;
     const correct = chip.dataset.tone === slot.dataset.tone;
-    this.session.total++;
-    if (correct) this.session.correct++;
     this._recordTone(chip.dataset.tone, correct);
 
     if (correct) {
       slot.classList.add('t-slot--filled');
-      slot.innerHTML = `<span class="t-slot-form">${esc(chip.dataset.form)}</span>
-        <span class="t-slot-name">${esc((TONE_DEFS.find(t => t.id === slot.dataset.tone) || {}).name || '')}</span>`;
       chip.classList.remove('t-chip--sel');
       chip.classList.add('t-chip--done');
       chip.disabled = true;
       this._sel = null;
       this._matched++;
-      this._refreshStats();
       if (this._matched >= 6) {
         window.celebrateCorrect?.();
         this.el.next.classList.remove('hidden');
@@ -266,7 +244,6 @@ class TonesModule {
       const c = chip;
       setTimeout(() => { slot.classList.remove('t-wrong'); c.classList.remove('t-wrong', 't-chip--sel'); }, 450);
       this._sel = null;
-      this._refreshStats();
     }
   }
 

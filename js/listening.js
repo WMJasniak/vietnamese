@@ -11,7 +11,6 @@ class ListeningModule {
     this.pool = [];
     this.current = null;
     this.answered = false;
-    this.session = { correct: 0, total: 0 };
     this._ready = false;
   }
   init() {}
@@ -35,7 +34,6 @@ class ListeningModule {
 
   _build() {
     this.container.innerHTML = `
-      <div class="stats-bar" id="ls-stats"></div>
       <div class="card">
         <div class="card-meta"><span class="card-dir">Type what you hear</span></div>
         <div class="t-play-row">
@@ -52,7 +50,6 @@ class ListeningModule {
       </div>
     `;
     this.el = {
-      stats: this.container.querySelector('#ls-stats'),
       play: this.container.querySelector('#ls-play'),
       reveal: this.container.querySelector('#ls-reveal'),
       input: this.container.querySelector('#ls-input'),
@@ -71,7 +68,6 @@ class ListeningModule {
       else this._submit();
     });
     if (typeof attachTelex === 'function') attachTelex(this.el.input);
-    this._refreshStats();
   }
 
   _next() {
@@ -107,8 +103,6 @@ class ListeningModule {
   _reveal(correct, typed) {
     this.answered = true;
     const word = this.current;
-    this.session.total++;
-    if (correct) this.session.correct++;
     if (typeof recordAnswer === 'function') {
       // Own latency bucket, not the shared "type Vietnamese" one: this task
       // always includes listening-to-audio time before typing even starts,
@@ -134,7 +128,6 @@ class ListeningModule {
     this.el.next.classList.remove('hidden');
     this._feedbackShownAt = Date.now();
     this.el.next.focus();
-    this._refreshStats();
   }
 
   // Guard against the Enter that submitted also "clicking" the freshly-focused
@@ -143,14 +136,6 @@ class ListeningModule {
     if (this._feedbackShownAt && Date.now() - this._feedbackShownAt < 300) return;
     this._feedbackShownAt = 0;
     this._next();
-  }
-
-  _refreshStats() {
-    const acc = this.session.total ? Math.round(this.session.correct / this.session.total * 100) : '—';
-    this.el.stats.innerHTML = `
-      <div class="stat"><div class="sv">${this.session.correct}/${this.session.total}</div><div class="sl">Correct</div></div>
-      <div class="stat"><div class="sv">${acc}${this.session.total ? '%' : ''}</div><div class="sl">Accuracy</div></div>
-    `;
   }
 
   _err(msg) {

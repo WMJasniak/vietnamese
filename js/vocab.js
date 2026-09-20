@@ -532,13 +532,10 @@ class VocabModule {
 
   _refreshStats() {
     const s = getStats();
-    const due = getDueCards(this.words).length;
-    const acc = s.reviewed ? Math.round(s.correct / s.reviewed * 100) : '—';
     this.el.stats.innerHTML = `
       <div class="stat"><div class="sv">${this.queue.length}</div><div class="sl">Remaining</div></div>
       <div class="stat"><div class="sv">${s.newToday}/${s.newLimit}</div><div class="sl">New today</div></div>
       <div class="stat"><div class="sv">${s.reviewed}</div><div class="sl">Reviewed</div></div>
-      <div class="stat"><div class="sv">${acc}%</div><div class="sl">Accuracy</div></div>
     `;
   }
 }

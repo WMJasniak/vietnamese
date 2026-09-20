@@ -87,7 +87,6 @@ class SegmentsModule {
     this.container = container;
     this.current = null;   // { set, target }
     this.answered = false;
-    this.session = { correct: 0, total: 0 };
   }
   init() {}
 
@@ -98,7 +97,6 @@ class SegmentsModule {
 
   _build() {
     this.container.innerHTML = `
-      <div class="stats-bar" id="sg-stats"></div>
       <div class="card t-card">
         <div class="card-meta"><span class="card-dir" id="sg-dir">Which sound do you hear?</span></div>
         <div class="t-play-row">
@@ -110,7 +108,6 @@ class SegmentsModule {
       </div>
     `;
     this.el = {
-      stats: this.container.querySelector('#sg-stats'),
       dir: this.container.querySelector('#sg-dir'),
       play: this.container.querySelector('#sg-play'),
       reveal: this.container.querySelector('#sg-reveal'),
@@ -124,7 +121,6 @@ class SegmentsModule {
       const btn = e.target.closest('.t-choice');
       if (btn && !this.answered) this._answer(btn.dataset.key);
     });
-    this._refreshStats();
   }
 
   _next() {
@@ -140,7 +136,6 @@ class SegmentsModule {
       </button>`).join('');
     this.el.reveal.textContent = '';
     this.el.next.classList.add('hidden');
-    this._refreshStats();
     if (typeof speakVi === 'function') speakVi(target.word);
   }
 
@@ -149,8 +144,6 @@ class SegmentsModule {
     this.answered = true;
     const { set, target } = this.current;
     const correct = picked === target.key;
-    this.session.total++;
-    if (correct) this.session.correct++;
     this._recordSet(set.id, correct);
     if (correct) window.celebrateCorrect?.();
 
@@ -162,7 +155,6 @@ class SegmentsModule {
     this.el.reveal.innerHTML = `<span class="t-reveal-word">${esc(target.word)}</span><span class="t-reveal-meta">${esc(target.en)}</span>`;
     this.el.next.classList.remove('hidden');
     this.el.next.focus();
-    this._refreshStats();
   }
 
   _recordSet(setId, correct) {
@@ -172,13 +164,5 @@ class SegmentsModule {
     data[setId].total++;
     if (correct) data[setId].correct++;
     try { localStorage.setItem(SEGMENTS_KEY, JSON.stringify(data)); } catch {}
-  }
-
-  _refreshStats() {
-    const acc = this.session.total ? Math.round(this.session.correct / this.session.total * 100) : '—';
-    this.el.stats.innerHTML = `
-      <div class="stat"><div class="sv">${this.session.correct}/${this.session.total}</div><div class="sl">This session</div></div>
-      <div class="stat"><div class="sv">${acc}${this.session.total ? '%' : ''}</div><div class="sl">Accuracy</div></div>
-    `;
   }
 }
