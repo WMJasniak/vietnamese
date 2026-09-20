@@ -978,9 +978,6 @@ main {
   justify-content: space-between;
   gap: 1rem;
 }
-/* A row with only a control, no label — space-between has nothing to push
-   the control away from, so it'd otherwise land at the start. */
-.setting-row--end { justify-content: flex-end; }
 
 .setting-label {
   font-size: .9rem;
@@ -1023,12 +1020,6 @@ main {
   line-height: 1.4;
   margin-top: -.25rem;
   padding-left: .25rem;
-}
-
-.setting-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
 }
 
 .setting-saved {

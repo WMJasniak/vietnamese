@@ -25,15 +25,15 @@ class SettingsModule {
 
       <section class="stats-section">
         <div class="stats-h">Daily Goal</div>
-        <div class="setting-row setting-row--end">
+        <div class="setting-row">
           <div class="setting-control">
             <input type="number" id="s-goal" class="setting-input" min="1" max="480" value="${s.dailyGoalMins}">
             <span class="setting-unit">min/day</span>
           </div>
-        </div>
-        <div class="setting-actions">
-          <button class="btn" id="s-save">Save</button>
-          <span id="s-saved" class="setting-saved hidden">✓ Saved</span>
+          <div class="setting-control">
+            <button class="btn" id="s-save">Save</button>
+            <span id="s-saved" class="setting-saved hidden">✓ Saved</span>
+          </div>
         </div>
       </section>
 

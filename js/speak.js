@@ -176,9 +176,16 @@ class SpeakModule {
       settle();
       this.el.mic.classList.remove('recording');
       if (e.error === 'language-not-supported' || e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        this._fallToRecordMode(e.error === 'not-allowed'
-          ? 'Microphone access was denied — recording playback needs it too, so allow it if prompted, then try again.'
-          : "Speech recognition for Vietnamese isn't available here — recording your voice instead so you can compare it to the model.");
+        // 'not-allowed' reads like a permission denial, but inside an
+        // Android WebView (as opposed to the full Chrome app) it just as
+        // often means the on-device SpeechRecognition *service* isn't
+        // reachable at all — the mic permission itself can be fully
+        // granted and this still fires. Since this code can't tell those
+        // two apart, it doesn't blame the user's permission choice; the
+        // record-and-echo fallback below does its own real getUserMedia()
+        // call, which *is* a reliable permission check, and reports an
+        // actual denial there if that's what's really going on.
+        this._fallToRecordMode("Speech recognition isn't available here — recording your voice instead so you can compare it to the model.");
         return;
       }
       // 'no-speech' / 'audio-capture' / other transient errors — let them
