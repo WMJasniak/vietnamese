@@ -1,8 +1,9 @@
 // Home screen / guided session engine. This *is* the app's default screen —
-// the user never picks which of the 10 learning tabs to use; this module
-// decides, auto-advances through them on a timer, and is the only thing
-// most sessions ever need. (Still internally called "Plan"/"plan.js" for
-// continuity with existing code/CSS — the user-facing label is "Home".)
+// the user never picks which of the 10 learning tabs to use, never sees a
+// "ready to start?" gate, and never watches a countdown: opening Home drops
+// straight into the current exercise, and finishing one drops straight into
+// the next. (Still internally called "Plan"/"plan.js" for continuity with
+// existing code/CSS — the user-facing label is "Home".)
 //
 // Design is grounded in second-language-acquisition + instructional-design
 // research (see README "Research basis" and the design notes below), not a
@@ -11,11 +12,20 @@
 // stage-based input/output balance) is what's literature-grounded; the
 // precise percentages are a calibrated synthesis of it.
 //
-//   - Single guided path, no tab-picking: menu-driven "trees" of optional
-//     paths increase decision fatigue; Duolingo's own move from a free-roam
-//     skill tree to one linear path was specifically to reduce that burden
-//     for beginners (at the cost of power-user flexibility, which is why
-//     every module is still reachable from More, just not primary).
+//   - Single guided path, no tab-picking, no start button: menu-driven
+//     "trees" of optional paths and pre-start gates both add decision
+//     fatigue/friction before the learner even begins — Duolingo's own move
+//     from a free-roam skill tree to one linear path was specifically to cut
+//     that burden for beginners (at the cost of power-user flexibility,
+//     which is why every module is still reachable from More, just not
+//     primary).
+//   - Never interrupt mid-question: earlier versions force-switched category
+//     the instant a time budget elapsed, which could yank the screen away
+//     mid-answer. Now a segment only ends at a boundary the learner
+//     themselves creates (clicking "Next →" once they've finished the
+//     current item) — see _installAdvanceGate. The time budget only decides
+//     when the *next* such click should be redirected into a new category
+//     instead of the same module's own next question.
 //   - Interleaving 2 skills alternated per session is well-evidenced for
 //     retention (contextual interference effect); studies showing benefits
 //     used 2 alternating tasks, not many. Over-fragmenting a session into
@@ -40,6 +50,11 @@
 //     seeds newly-seen words within that same session. Anything that turns
 //     out to have nothing to do (including a daily new-card cap already
 //     being used up) is swapped for something that always does, live.
+//   - The daily goal shapes proportions and drives the progress bar, but
+//     doesn't stop the session — once the built queue is exhausted the
+//     goal is (re-)checked (a one-time celebratory toast the first time
+//     it's crossed each day) and a fresh queue is built, so there's always
+//     a next exercise rather than a dead end.
 //   - Reader (needs text you paste yourself) and Basics (a static
 //     reference page, not a drill) are deliberately never auto-scheduled —
 //     there's no default content for either, so putting them in a timed
@@ -47,6 +62,13 @@
 //     to avoid. Both stay reachable from More as manual/secondary tools.
 // DAY_MS is already declared by srs.js (loaded earlier) — reused here.
 const MIN_SEGMENT_MIN = 2;   // below this a slice is too thin to be worth a switch
+// A segment becomes eligible to hand off to the next category slightly
+// before its nominal budget is up. Since the actual handoff now waits for
+// the learner's own next "Next →" click rather than firing immediately,
+// that wait itself eats into the segment's real length — starting the
+// clock a bit early keeps the *average* segment length close to what was
+// actually planned instead of consistently running over.
+const EARLY_ADVANCE_BUFFER_SEC = 12;
 
 // Category → planned share of the daily goal, by stage (known-word count).
 // Same three stages/thresholds this app already used for Tones/Vocab/etc.
@@ -64,10 +86,8 @@ function _stageCategoryWeights() {
 }
 
 const CATEGORY_ORDER = ['ear', 'vocab', 'structures', 'cloze', 'listening', 'speak'];
-// Not used for the live preview (which resolves each category to its actual
-// live-data label via _resolveOrFallback so it never promises something the
-// session then substitutes) — kept as the canonical "every category has a
-// human label" reference, and asserted against in tests/run_tests.py.
+// Kept as the canonical "every category has a human label" reference, and
+// asserted against in tests/run_tests.py.
 const CATEGORY_PREVIEW_LABEL = {
   ear: 'Ear training (tones & sounds)',
   vocab: 'Vocabulary (SRS)',
@@ -196,12 +216,13 @@ function _buildCategoryQueue(goalMinutes) {
 class PlanModule {
   constructor(container) {
     this.container = container;
-    this._session = null;    // { queue, current, elapsedSec, totalSec, paused, lastTick, doneCount, totalCount }
+    this._session = null;    // { queue, current, elapsedSec, totalSec, paused, lastTick, pendingAdvance }
     this._words = [];
     this._ready = false;
     this._lastActivity = Date.now();
     this._tickHandle = null;
     this._build();
+    this._installAdvanceGate();
 
     ['click', 'keydown', 'pointerdown'].forEach(ev =>
       document.addEventListener(ev, () => { this._lastActivity = Date.now(); }, { passive: true }));
@@ -210,14 +231,22 @@ class PlanModule {
   init() {}
 
   activate() {
-    if (this._ready) { this._render(); return; }
+    if (this._ready) { this._enterOrResume(); return; }
     const loadWords = typeof loadVocabulary === 'function' ? loadVocabulary() : Promise.resolve([]);
     const loadSents = typeof loadSentences === 'function' ? loadSentences() : Promise.resolve();
     Promise.all([loadWords, loadSents]).then(([words]) => {
       this._words = words || [];
       this._ready = true;
-      this._render();
-    }).catch(() => { this._ready = true; this._render(); });
+      this._enterOrResume();
+    }).catch(() => { this._ready = true; this._enterOrResume(); });
+  }
+
+  // Home has no screen of its own to look at: landing here either resumes
+  // whatever exercise is already running or starts the next one — either
+  // way the learner ends up looking at a drill, never a menu.
+  _enterOrResume() {
+    if (this._session) { this._switchToCurrentTab(); this._render(); return; }
+    this._start();
   }
 
   _build() {
@@ -243,7 +272,10 @@ class PlanModule {
     bar.className = 'session-bar hidden';
     bar.innerHTML = `
       <span class="session-bar-label" id="sb-label"></span>
-      <span class="session-bar-time" id="sb-time"></span>
+      <div class="sb-goal" id="sb-goal" title="Today's progress toward your daily goal">
+        <div class="sb-goal-bar"><div class="sb-goal-fill" id="sb-goal-fill"></div></div>
+        <span class="sb-goal-text" id="sb-goal-text"></span>
+      </div>
       <button class="session-bar-btn" id="sb-pause" type="button" aria-label="Pause">⏸</button>
       <button class="session-bar-btn" id="sb-skip" type="button" aria-label="Skip ahead">⏭</button>
       <button class="session-bar-btn" id="sb-stop" type="button" aria-label="Stop session">✕</button>
@@ -262,7 +294,13 @@ class PlanModule {
     this.bar.classList.toggle('hidden', !s);
     if (!s) return;
     this.bar.querySelector('#sb-label').textContent = s.current.label;
-    this.bar.querySelector('#sb-time').textContent = _fmtMS(Math.max(0, s.totalSec - s.elapsedSec));
+    const g = (typeof getGoalStats === 'function') ? getGoalStats() : null;
+    if (g) {
+      const pct = g.goalSecs ? Math.min(100, 100 * g.today / g.goalSecs) : 0;
+      this.bar.querySelector('#sb-goal-fill').style.width = `${pct.toFixed(1)}%`;
+      this.bar.querySelector('#sb-goal-text').textContent =
+        `${Math.round(g.today / 60)}/${Math.round(g.goalSecs / 60)} min`;
+    }
     this.bar.querySelector('#sb-pause').textContent = s.paused ? '▶' : '⏸';
     this.bar.querySelector('#sb-pause').setAttribute('aria-label', s.paused ? 'Resume' : 'Pause');
   }
@@ -271,78 +309,18 @@ class PlanModule {
     return (typeof getSettings === 'function' ? getSettings().dailyGoalMins : null) || 30;
   }
 
+  // Home's own panel is only ever visible for an instant (if at all) — it
+  // always hands off straight to the drill tab currently in session. This
+  // is just what's briefly underneath that handoff, or shown while the
+  // very first load is still in flight.
   _render() {
-    if (!this._ready) {
-      this.root.innerHTML = `<p class="stats-placeholder">Loading…</p>`;
-      return;
-    }
-    const s = this._session;
-    if (s) {
-      const remaining = Math.max(0, s.totalSec - s.elapsedSec);
-      this.root.innerHTML = `
-        <section class="plan-session">
-          <div class="plan-session-h">
-            <span class="plan-session-now">Now: <strong>${esc(s.current.label)}</strong></span>
-            <span class="plan-session-time" id="plan-time">${_fmtMS(remaining)}</span>
-          </div>
-          <div class="plan-progress"><div class="plan-progress-bar" style="width:${
-            s.totalSec ? (100 * s.elapsedSec / s.totalSec).toFixed(1) : 0
-          }%"></div></div>
-          <div class="plan-session-sub">Segment ${s.doneCount + 1} of ${s.totalCount}</div>
-          <div class="plan-session-actions">
-            <button class="btn-ghost" id="plan-pause">${s.paused ? '▶ Resume' : '⏸ Pause'}</button>
-            <button class="btn-ghost" id="plan-skip">Skip ahead</button>
-            <button class="btn-ghost" id="plan-stop">Stop session</button>
-          </div>
-        </section>
-      `;
-      this.root.querySelector('#plan-pause').addEventListener('click', () => this._togglePause());
-      this.root.querySelector('#plan-skip').addEventListener('click', () => this._advance());
-      this.root.querySelector('#plan-stop').addEventListener('click', () => this._stop());
-    } else {
-      const goal = this._goalMinutes();
-      // Resolved with the exact same function (and current data) the
-      // session itself uses, not just the raw category weights — so this
-      // preview never promises e.g. "Cloze" and then quietly hands the
-      // learner Listening instead once the session actually starts.
-      const preview = _buildCategoryQueue(goal).map(seg => ({
-        label: _resolveOrFallback(seg.category, this._words).label,
-        minutes: seg.minutes,
-      }));
-      this.root.innerHTML = `
-        <section class="plan-setup">
-          <div class="plan-h">
-            <div class="plan-title">Ready to learn?</div>
-            <div class="plan-total">${goal} min today</div>
-          </div>
-          <ol class="plan-list">
-            ${preview.map(seg => `
-              <li class="plan-li">
-                <span class="plan-li-name">${esc(seg.label)}</span>
-                <span class="plan-li-time">~${seg.minutes} min</span>
-              </li>
-            `).join('')}
-          </ol>
-          <div class="plan-setup-actions">
-            <button class="btn" id="plan-start">▶ Start learning</button>
-          </div>
-          <p class="plan-note">
-            Auto-tuned to your level and interleaved for retention — heavier on
-            listening/perception and vocabulary early, shifting toward sentences
-            and speaking as you learn more. Nothing here is ever scheduled with
-            nothing to practice; nothing to configure either — just start.
-            Want a longer or shorter session? Change it in Settings.
-          </p>
-        </section>
-      `;
-      this.root.querySelector('#plan-start').addEventListener('click', () => this._start());
-    }
+    this.root.innerHTML = `<p class="stats-placeholder">${this._ready ? 'Loading your next exercise…' : 'Loading…'}</p>`;
   }
 
   _start() {
     const goal = this._goalMinutes();
     const queue = _buildCategoryQueue(goal);
-    if (!queue.length) { showToast('Nothing to schedule yet — try Vocab directly.'); return; }
+    if (!queue.length) { showToast('Nothing to practice yet — try Vocab directly.'); return; }
     const first = queue.shift();
     this._session = {
       queue,
@@ -351,8 +329,7 @@ class PlanModule {
       totalSec: first.minutes * 60,
       paused: false,
       lastTick: Date.now(),
-      doneCount: 0,
-      totalCount: queue.length + 1,
+      pendingAdvance: false,
     };
     this._lastActivity = Date.now();
     this._switchToCurrentTab();
@@ -377,34 +354,32 @@ class PlanModule {
     if (!this._session) return;
     this._session.paused = !this._session.paused;
     this._session.lastTick = Date.now();
-    this._render();
     this._updateSessionBar();
   }
 
+  // Moves to the next category. Called either by the user (Skip, always
+  // immediate) or by _installAdvanceGate (only once the learner has
+  // finished the current item and clicked its own "Next →"). The queue
+  // never truly runs out — once empty it's rebuilt from the daily goal, so
+  // there's always a next exercise; the goal itself is only (re-)checked
+  // here for the one-time celebratory toast, not as a stopping point.
   _advance() {
     if (!this._session) return;
     const s = this._session;
     if (!s.queue.length) {
-      this._session = null;
-      this._stopTicker();
-      showToast('Session complete! 🎉');
-      // Otherwise the user is left stranded on whatever drill tab the last
-      // segment happened to be, with no visible way back to "session done,
-      // here's your recap" — the whole point of the persistent bar was to
-      // keep them off Home during the session, but they should land back
-      // on it once there's no session left to show a bar for.
-      if (typeof window.switchTab === 'function') window.switchTab('plan');
-      this._render();
-      this._updateSessionBar();
-      return;
+      if (typeof checkGoal === 'function' && checkGoal()) {
+        showToast('Daily goal complete! 🎉 Keep going whenever you like — Stop ends the session.');
+      }
+      s.queue = _buildCategoryQueue(this._goalMinutes());
+      if (!s.queue.length) s.queue = [{ category: 'listening', minutes: this._goalMinutes() || 10 }];
     }
     const next = s.queue.shift();
     s.current = { ..._resolveOrFallback(next.category, this._words), minutes: next.minutes };
     s.elapsedSec = 0;
     s.totalSec = next.minutes * 60;
     s.paused = false;
+    s.pendingAdvance = false;
     s.lastTick = Date.now();
-    s.doneCount++;
     this._lastActivity = Date.now();
     this._switchToCurrentTab();
     showToast(`Next: ${s.current.label}`);
@@ -415,6 +390,30 @@ class PlanModule {
   _switchToCurrentTab() {
     if (!this._session) return;
     if (typeof window.switchTab === 'function') window.switchTab(this._session.current.tab);
+  }
+
+  // Intercepts the learner's own "Next →" click (or its swipe/keyboard
+  // equivalents, which all dispatch through the same button) once the
+  // current segment's time is up, redirecting straight into the next
+  // category instead of letting the module load another question in the
+  // same one. Registered on the capture phase so it runs before the
+  // module's own click handler, and stops the event there — the module
+  // never sees the click, so it's left showing the last item's feedback
+  // for the instant before the tab switch replaces it. This is the only
+  // place a segment ever ends automatically: never on a raw timer, always
+  // on a boundary the learner just created themselves.
+  _installAdvanceGate() {
+    document.addEventListener('click', (e) => {
+      const s = this._session;
+      if (!s || !s.pendingAdvance) return;
+      const btn = e.target.closest?.('.btn-next:not(.hidden)');
+      if (!btn) return;
+      const panel = btn.closest('.tab-panel');
+      if (!panel || panel.id !== `tab-${s.current.tab}` || !panel.classList.contains('active')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this._advance();
+    }, true);
   }
 
   _startTicker() {
@@ -442,19 +441,12 @@ class PlanModule {
       s.elapsedSec = Math.min(s.totalSec, s.elapsedSec + dt);
     }
 
-    if (s.elapsedSec >= s.totalSec) { this._advance(); return; }
+    if (!s.pendingAdvance && s.elapsedSec >= Math.max(0, s.totalSec - EARLY_ADVANCE_BUFFER_SEC)) {
+      s.pendingAdvance = true;
+    }
 
-    const t = this.root.querySelector('#plan-time');
-    if (t) t.textContent = _fmtMS(Math.max(0, s.totalSec - s.elapsedSec));
-    const bar = this.root.querySelector('.plan-progress-bar');
-    if (bar) bar.style.width = `${(100 * s.elapsedSec / s.totalSec).toFixed(1)}%`;
     this._updateSessionBar();
   }
 }
 
 const IDLE_LIMIT_MS = 90_000;
-
-function _fmtMS(sec) {
-  const s = Math.max(0, Math.round(sec));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}

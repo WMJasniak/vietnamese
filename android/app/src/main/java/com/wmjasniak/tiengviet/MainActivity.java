@@ -32,6 +32,9 @@ import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebViewAssetLoader;
 
 import java.io.BufferedReader;
@@ -90,6 +93,7 @@ public class MainActivity extends Activity {
 
         web = new WebView(this);
         setContentView(web);
+        hideNavigationBar();
 
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -223,6 +227,28 @@ public class MainActivity extends Activity {
         }
 
         web.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
+    }
+
+    // Hides just the system navigation bar (status bar stays, since it's
+    // still useful — clock/battery/signal). BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    // means a swipe from the edge still reveals it temporarily rather than
+    // locking the user out of it entirely.
+    private void hideNavigationBar() {
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        WindowInsetsControllerCompat controller =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (controller == null) return;
+        controller.setSystemBarsBehavior(
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        controller.hide(WindowInsetsCompat.Type.navigationBars());
+    }
+
+    // The nav bar can reappear (edge swipe, returning from another app) —
+    // re-hide it whenever the window regains focus rather than just once.
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) hideNavigationBar();
     }
 
     @Override

@@ -66,15 +66,21 @@ one confirmation tap — Android doesn't allow silent self-update). See
 `UpdateBridge` for the native half and `checkForAndroidUpdate()` in
 [js/app.js](js/app.js) for the JS half.
 
+The system navigation bar (the on-screen Back/Home/Recents buttons) is
+hidden while the app is in the foreground — `hideNavigationBar()` in
+`MainActivity.java`, re-applied on every window-focus change since a swipe
+from the edge (or switching back from another app) can bring it back
+transiently. The status bar stays visible.
+
 ## Features
 
-### Home: one guided session, no tab-picking
+### Home: exercises right away, no menu, no gate
 
-The app's default screen isn't a menu — it's a single "Ready to learn?"
-session that auto-decides what to practice and auto-advances through it,
-tab-switching itself on a timer. There's nothing to configure beyond the
-daily length (Settings); tapping "Start learning" is the only decision.
-This is a deliberate design choice, not just a convenience:
+The app's default screen isn't a menu, and it isn't a "ready to start?"
+screen either — opening Home (or finishing whatever you're on) drops you
+straight into an exercise. There's nothing to configure beyond the daily
+length (Settings), and nothing to tap before you can begin. This is a
+deliberate design choice, not just a convenience:
 
 - **Every drill is grouped into one of six categories** — ear training
   (Tones/Sounds), Vocabulary, Structures (Grammar/Chunks), Cloze, Listening,
@@ -89,6 +95,15 @@ This is a deliberate design choice, not just a convenience:
   should outweigh output for beginners, shifting toward sentences and
   speaking as vocabulary grows — but Speaking always gets a modest slice
   even on day one, since output practice should never be zero.
+- **A category never ends mid-question.** Earlier versions force-switched
+  the moment a time budget elapsed, which could yank the screen away while
+  you were mid-answer. Now the time budget only arms a *soft* handoff —
+  the actual switch happens on the next "Next →" you click yourself (same
+  button/swipe/Enter-key action every drill already uses to move on), never
+  before. Since that wait eats into the segment's real length, the handoff
+  arms itself a little before the nominal budget so the average still lands
+  close to what was planned. Skip ahead in the session bar still switches
+  immediately — that's an explicit override, not an interruption.
 - **Nothing is ever scheduled with nothing to do.** Each category is
   resolved to an actual module right before it starts (not all
   precomputed), checking live content availability at that exact moment —
@@ -101,10 +116,17 @@ This is a deliberate design choice, not just a convenience:
   and Basics (a static reference, not a drill) are never auto-scheduled —
   there's no default content for either, so a timed rotation would
   guarantee exactly the "nothing to do" failure this is meant to avoid.
+- **The daily goal shapes the session but never ends it.** Once the day's
+  planned categories are all used up, a fresh set is built and practice
+  keeps flowing — crossing the goal just fires a one-time celebratory toast,
+  read from the same real, persistent study-time tracker Stats uses (not a
+  per-session counter), so it stays correct across app restarts.
 - **A persistent session bar** (pause / skip ahead / stop, current segment,
-  time remaining) stays visible across every tab the session switches you
-  to — otherwise those controls would live only on the Home screen itself,
-  which the session immediately switches away from.
+  today's progress toward the daily goal) stays visible across every tab
+  the session switches you to — otherwise those controls would live only on
+  the Home screen itself, which the session immediately switches away from.
+  It shows a goal-progress bar rather than a countdown, on purpose: nothing
+  here is meant to feel like a clock pushing you along.
 
 Every individual drill — Vocab, Tones, Sounds, Cloze, Grammar, Chunks,
 Listening, Speak, Reader, Basics — is still fully reachable from **More**,
