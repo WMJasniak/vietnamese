@@ -12,6 +12,19 @@ class SettingsModule {
     const s = getSettings();
     this.container.innerHTML = `
       <section class="stats-section">
+        <div class="stats-h">Appearance</div>
+        <div class="setting-row">
+          <span class="setting-label">Theme</span>
+          <div class="setting-control">
+            <select id="s-theme" class="setting-input">
+              <option value="light" ${(s.theme || 'light') === 'light' ? 'selected' : ''}>Light</option>
+              <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>Dark</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="stats-section">
         <div class="stats-h">Daily Goal</div>
         <div class="setting-row">
           <label class="setting-label" for="s-goal">Study time goal</label>
@@ -128,6 +141,12 @@ class SettingsModule {
         </div>
       </section>
     `;
+
+    this.container.querySelector('#s-theme').addEventListener('change', e => {
+      const theme = e.target.value === 'dark' ? 'dark' : 'light';
+      saveSettings({ ...getSettings(), theme });
+      applyTheme(theme);
+    });
 
     this.container.querySelector('#s-save').addEventListener('click', () => {
       const raw = Number(this.container.querySelector('#s-goal').value);

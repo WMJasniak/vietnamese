@@ -5,12 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Tiếng Việt · Vietnamese Learning</title>
 
+  <!-- Sets the dark/light attribute (from the Appearance setting) before
+       first paint, so switching themes never shows a flash of the other
+       one. Reads localStorage directly rather than waiting on srs.js
+       (loaded later, after the stylesheet) since this has to run first. -->
+  <script>
+    (function () {
+      var theme = 'light';
+      try {
+        var raw = localStorage.getItem('vn_settings_v1');
+        if (raw) { var s = JSON.parse(raw); if (s && s.theme === 'dark') theme = 'dark'; }
+      } catch (e) {}
+      if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      document.addEventListener('DOMContentLoaded', function () {
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute('content', theme === 'dark' ? '#12181a' : '#fbfbf6');
+      });
+    })();
+  </script>
+
   <!-- PWA: installable, offline-capable -->
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0d1117">
+  <meta name="theme-color" content="#fbfbf6">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Tiếng Việt">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" href="icons/icon-192.png">

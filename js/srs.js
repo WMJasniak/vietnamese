@@ -490,9 +490,19 @@ function removeTodayGoal() {
 const SETTINGS_KEY = 'vn_settings_v1';
 
 function getSettings() {
-  const defaults = { dailyGoalMins: 30, retentionTarget: 0.9, newPerDay: NEW_PER_DAY_DEFAULT, autoSpeakVocab: true, autoSpeakExamples: true, bothDirections: true, toneDifficulty: 'medium' };
+  const defaults = { dailyGoalMins: 30, retentionTarget: 0.9, newPerDay: NEW_PER_DAY_DEFAULT, autoSpeakVocab: true, autoSpeakExamples: true, bothDirections: true, toneDifficulty: 'medium', theme: 'light' };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
   catch { return defaults; }
+}
+
+// Applies a theme change live (the initial theme, before this script even
+// loads, is set by the inline pre-paint script in index.html — this is only
+// for switching after the Settings toggle changes).
+function applyTheme(theme) {
+  if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'dark' ? '#12181a' : '#fbfbf6');
 }
 
 function saveSettings(s) {

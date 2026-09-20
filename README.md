@@ -74,6 +74,17 @@ transiently. The status bar stays visible.
 
 ## Features
 
+### Visual design
+
+Light "Playful" (Baloo 2 display type, a teal-emerald accent, thick borders,
+chunky "pressable" buttons with a bottom-shadow) is the default, with a Dark
+variant (Settings → Appearance) built from the same shape language and
+component rules — every color is a `--token` in [css/style.css](css/style.css),
+so the two themes share one set of component styles rather than duplicating
+them. The choice persists (`localStorage`) and applies before first paint via
+a small inline script in [index.html](index.html), so switching themes never
+flashes the other one on load.
+
 ### Home: exercises right away, no menu, no gate
 
 The app's default screen isn't a menu, and it isn't a "ready to start?"
