@@ -237,6 +237,11 @@ class PlanModule {
 
   init() {}
 
+  // Called by app.js on every tab switch (not just into Home) so the bar's
+  // Stats/Settings-hidden state updates immediately rather than waiting up
+  // to a second for the next tick.
+  onTabSwitched() { this._updateSessionBar(); }
+
   activate() {
     if (this._ready) { this._enterOrResume(); return; }
     const loadWords = typeof loadVocabulary === 'function' ? loadVocabulary() : Promise.resolve([]);
@@ -283,11 +288,21 @@ class PlanModule {
     this.bar = bar;
   }
 
+  // Stats/Settings already show the same information in more detail (Stats'
+  // own "Today" progress bar) or don't need it at all — the persistent bar
+  // is only useful while you're actually in a drill, so it stays hidden on
+  // those two tabs instead of eating vertical space everywhere.
+  _barHiddenOnTab() {
+    const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+    return activeTab === 'stats' || activeTab === 'settings';
+  }
+
   _updateSessionBar() {
     if (!this.bar) return;
     const s = this._session;
-    document.body.classList.toggle('session-active', !!s);
-    this.bar.classList.toggle('hidden', !s);
+    const show = !!s && !this._barHiddenOnTab();
+    document.body.classList.toggle('session-active', show);
+    this.bar.classList.toggle('hidden', !show);
     if (!s) return;
     const g = (typeof getGoalStats === 'function') ? getGoalStats() : null;
     if (g) {

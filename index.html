@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- overlays-content: the on-screen keyboard floats over the page instead
+       of shrinking/resizing it. Without this, every text input (Vocab,
+       Cloze, Grammar, Chunks, Listening...) caused the whole layout —
+       including the fixed header/progress-bar/bottom-nav — to visibly
+       reflow every time the keyboard opened or closed. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content">
   <title>Tiếng Việt · Vietnamese Learning</title>
 
   <!-- Sets the dark/light attribute (from the Appearance setting) before

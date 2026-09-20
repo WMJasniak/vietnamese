@@ -322,10 +322,9 @@ class VocabModule {
         <div class="en-word">${esc(meanings || '(no meaning)')}</div>
         ${(word.pos && word.pos.length) ? `<div class="en-alts">${esc(word.pos.join(' · '))}</div>` : ''}
       `;
-      const loose = getSettings().acceptNoDiacritics === true;
-      this.el.hint.innerHTML = loose
-        ? 'Type the Vietnamese word — diacritics optional'
-        : 'Type the Vietnamese word <strong>with diacritics</strong> (Settings to relax)';
+      // Whether diacritics are required is already a one-time Settings
+      // choice — not worth repeating on every single card.
+      this.el.hint.textContent = '';
       this.el.input.placeholder = 'Vietnamese word…';
     }
     this.el.prompt.querySelector('#v-speak')?.addEventListener('click', () => speakVi(word.word));

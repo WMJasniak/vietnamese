@@ -29,6 +29,12 @@ const TAB_NAV = [
   { id: 'basics',    icon: '🔤', label: 'Basics',  core: false },
 ];
 
+// Same intent as the viewport meta's interactive-widget=overlays-content —
+// this JS API is the older/more broadly-supported path to the same
+// behavior (the keyboard floats over the page instead of resizing it),
+// so both are set for coverage across WebView/Chrome versions.
+try { if (navigator.virtualKeyboard) navigator.virtualKeyboard.overlaysContent = true; } catch {}
+
 document.addEventListener('DOMContentLoaded', () => {
   buildHeaderNav();   // populate #header-tabs before querying .tab-btn below
   // [data-tab] excludes the "More" toggle button, which reuses .tab-btn's
@@ -80,6 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (entering === 'chunks'   && chunksModule)   chunksModule.activate();
       if (entering === 'listening'&& listeningModule)listeningModule.activate();
       if (entering === 'speak'    && speakModule)    speakModule.activate();
+      // Not gated to entering === 'plan' — the bar needs to react to every
+      // tab switch (e.g. hiding on Stats/Settings), not just visits to Home.
+      planModule?.onTabSwitched();
 
       updateBottomNavActive(entering);
       document.getElementById('header-tabs')?.classList.remove('tabs-more-open');
@@ -143,12 +152,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // same function.
   checkForAndroidUpdate();
 
-  // Keep the focused answer field visible above the on-screen keyboard.
+  // Keep the focused answer field visible above the on-screen keyboard. With
+  // the keyboard now overlaying the page (interactive-widget=overlays-
+  // content, set above) rather than resizing it, the layout viewport no
+  // longer shrinks — so plain scrollIntoView({block:'center'}) centers
+  // against the *full* page and can land the field right behind the
+  // keyboard. visualViewport.height still reflects the keyboard-reduced
+  // visible area, so nudge just enough to clear it instead.
   document.addEventListener('focusin', e => {
     const el = e.target;
-    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-      setTimeout(() => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {} }, 300);
-    }
+    if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+    const reveal = () => {
+      try {
+        const vv = window.visualViewport;
+        if (!vv) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+        const rect = el.getBoundingClientRect();
+        const margin = 16;
+        if (rect.bottom > vv.height - margin) {
+          window.scrollBy({ top: rect.bottom - vv.height + margin, behavior: 'smooth' });
+        } else if (rect.top < margin) {
+          window.scrollBy({ top: rect.top - margin, behavior: 'smooth' });
+        }
+      } catch {}
+    };
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', reveal, { once: true });
+    setTimeout(reveal, 350); // fallback in case the keyboard doesn't fire a resize event
   });
 
   // Swipe left to advance to the next card (when a Next button is showing).

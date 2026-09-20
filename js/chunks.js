@@ -195,7 +195,9 @@ class ChunksModule {
       this.el.rule.classList.add('hidden');
     }
     this.el.en.textContent = ex.en || '';
-    this.el.sentence.innerHTML = _chunkBlank(ex.vi, c.chunk) || esc(ex.vi);
+    const blanked = _chunkBlank(ex.vi, c.chunk) || esc(ex.vi);
+    this.el.sentence.innerHTML = `${blanked} <button class="zh-speak" id="ch-sentence-speak" type="button" aria-label="Listen" title="Listen">🔊</button>`;
+    this.el.sentence.querySelector('#ch-sentence-speak')?.addEventListener('click', () => speakVi(ex.vi));
     this.el.count.textContent = `${this.queue.length} left`;
     this.el.feedback.className = 'feedback hidden';
     this.el.next.classList.add('hidden');

@@ -1868,6 +1868,18 @@ main {
   grid-template-columns: repeat(3, 1fr);
   gap: .5rem;
 }
+/* Segments (Sounds) reuses .t-choices but has 2 or 3 options depending on
+   the contrast set — not always 6 like Tones — so stretching them across
+   fixed grid tracks left a lopsided gap. Center them as their own compact
+   group instead, sized to content rather than forced to fill a row. */
+#sg-choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+#sg-choices .t-choice {
+  flex: 0 1 150px;
+}
 .t-choice {
   display: flex;
   flex-direction: column;
