@@ -20,21 +20,9 @@
 <body>
   <header>
     <div class="app-title">Tiếng Việt</div>
-    <nav class="tabs">
-      <button class="tab-btn active" data-tab="plan">Plan</button>
-      <button class="tab-btn" data-tab="basics">Basics</button>
-      <button class="tab-btn" data-tab="vocab">Vocabulary</button>
-      <button class="tab-btn" data-tab="tones">Tones</button>
-      <button class="tab-btn" data-tab="segments">Sounds</button>
-      <button class="tab-btn" data-tab="cloze">Cloze</button>
-      <button class="tab-btn" data-tab="grammar">Grammar</button>
-      <button class="tab-btn" data-tab="chunks">Chunks</button>
-      <button class="tab-btn" data-tab="listening">Listening</button>
-      <button class="tab-btn" data-tab="speak">Speak</button>
-      <button class="tab-btn" data-tab="reader">Reader</button>
-      <button class="tab-btn" data-tab="stats">Stats</button>
-      <button class="tab-btn" data-tab="settings">Settings</button>
-    </nav>
+    <!-- Populated by buildHeaderNav() in app.js from the TAB_NAV array — one
+         source of truth shared with the mobile bottom nav. -->
+    <nav class="tabs" id="header-tabs"></nav>
   </header>
 
   <main>

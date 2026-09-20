@@ -293,19 +293,70 @@ T('override tôi -> I, me', firstAfterOverride('tôi')==='I, me', firstAfterOver
 T('override là -> to be', firstAfterOverride('là')==='to be', firstAfterOverride('là'));
 T('override đã concise', firstAfterOverride('đã')==='already; did (past/completed marker)', firstAfterOverride('đã'));
 
-// ---- Plan (stage-aware, scaling) ----
-var basePlan=[{tab:'a',minutes:4},{tab:'b',minutes:10},{tab:'c',minutes:5},{tab:'d',minutes:7},{tab:'e',minutes:4}];
-T('scalePlan sums to 30', _scalePlan(basePlan,30).reduce(function(a,s){return a+s.minutes;},0)===30);
-T('scalePlan sums to 45', _scalePlan(basePlan,45).reduce(function(a,s){return a+s.minutes;},0)===45);
-T('scalePlan sums to 20', _scalePlan(basePlan,20).reduce(function(a,s){return a+s.minutes;},0)===20);
-T('scalePlan keeps zeroed segments', _scalePlan([{tab:'a',minutes:0},{tab:'b',minutes:10}],30).filter(function(s){return s.minutes===0;}).length===1);
-var stg=_stagePlan();
-T('stagePlan well-formed', Array.isArray(stg)&&stg.length>0&&stg.every(function(s){return s.tab&&s.minutes>0&&s.label;}));
-T('stagePlan base sums 30', stg.reduce(function(a,s){return a+s.minutes;},0)===30);
-var op=optimalPlan(); var goal=getSettings().dailyGoalMins||30;
-T('optimalPlan sums to daily goal', op.reduce(function(a,s){return a+s.minutes;},0)===goal, 'goal='+goal+' got='+op.reduce(function(a,s){return a+s.minutes;},0));
-var VALID={tones:1,vocab:1,grammar:1,cloze:1,listening:1,reader:1,basics:1};
-T('optimalPlan tabs all valid', op.every(function(s){return VALID[s.tab];}));
+// ---- Home/session engine (stage-aware category weights, availability-checked resolution) ----
+localStorage.clear();
+
+// _stageCategoryWeights: each tier sums to 100; Foundation excludes cloze
+T('foundation weights sum to 100, no cloze', (function(){
+  var w={ear:25,vocab:35,structures:15,cloze:0,listening:12,speak:13};
+  var sum=0; for(var k in w) sum+=w[k];
+  return sum===100 && w.cloze===0;
+})());
+
+// _buildCategoryQueue: sums to the goal minutes, well-formed, respects MIN_SEGMENT_MIN
+[20,30,45,60].forEach(function(goal){
+  var q=_buildCategoryQueue(goal);
+  var sum=q.reduce(function(a,s){return a+s.minutes;},0);
+  T('category queue sums to goal ('+goal+')', sum===goal, 'got '+sum);
+  T('category queue well-formed ('+goal+')', q.every(function(s){return s.category&&s.minutes>0&&CATEGORY_PREVIEW_LABEL[s.category];}));
+});
+T('very short goal still sums exactly and prunes thin slices', (function(){
+  var q=_buildCategoryQueue(6);
+  var sum=q.reduce(function(a,s){return a+s.minutes;},0);
+  return sum===6 && q.every(function(s){return s.minutes>=1;});
+})());
+
+// _resolveCategory: ear/listening/speak never null regardless of data state
+T('ear category always resolves', !!_resolveCategory('ear',[]));
+T('listening category always resolves', !!_resolveCategory('listening',[]));
+T('speak category always resolves', !!_resolveCategory('speak',[]));
+T('ear resolves to tones or segments', ['tones','segments'].indexOf(_resolveCategory('ear',[]).tab)>=0);
+
+// _vocabAvailable / vocab category: null with no words, resolves with a fresh word list
+T('vocab category null with no words', _resolveCategory('vocab',[])===null);
+localStorage.clear();
+var freshWords=[{id:'pw1',word:'pw1'},{id:'pw2',word:'pw2'}];
+T('vocab category resolves with a fresh word list', _resolveCategory('vocab',freshWords)!==null && _resolveCategory('vocab',freshWords).tab==='vocab');
+
+// _grammarAvailable / _chunksAvailable / structures category
+localStorage.clear();
+T('grammar available on a fresh store (new items to introduce)', _grammarAvailable()===true);
+T('chunks available on a fresh store (new items to introduce)', _chunksAvailable()===true);
+T('structures category resolves to grammar or chunks when both available', ['grammar','chunks'].indexOf(_resolveCategory('structures',[]).tab)>=0);
+// Exhaust both daily new-item allowances with nothing due yet -> structures unavailable
+localStorage.clear();
+for (var gi=0; gi<GRAMMAR_NEW_PER_DAY; gi++) _grBumpNew();
+for (var ci=0; ci<CHUNKS_NEW_PER_DAY; ci++) _chBumpNew();
+T('grammar unavailable once daily new-item cap is used and nothing is due', _grammarAvailable()===false);
+T('chunks unavailable once daily new-item cap is used and nothing is due', _chunksAvailable()===false);
+T('structures category is null (both exhausted) -> caller must fall back', _resolveCategory('structures',[])===null);
+T('_resolveOrFallback substitutes the always-safe Listening segment', _resolveOrFallback('structures',[]).tab==='listening');
+localStorage.clear();
+
+// _clozeAvailable / cloze category: false with nothing seen, true once a seen
+// word has a genuinely blankable example (fetch isn't available in this
+// harness, so a tiny in-memory sentence list is injected directly into
+// sentences.js's shared _sentences variable rather than relying on loadSentences()).
+T('cloze category null with no words', _resolveCategory('cloze',[])===null);
+var czWords=[{id:'czw1',word:'ngon'}];
+T('cloze category null when word not yet seen', _resolveCategory('cloze',czWords)===null);
+recordAnswer('czw1','vi-en',true);
+T('cloze still null: seen but no matching sentence loaded', _resolveCategory('cloze',czWords)===null);
+_sentences=[{vi:'Món này rất ngon.', en:'This dish is very delicious.'}];
+_vnHitCache.clear();
+T('cloze category resolves once a seen word has a blankable sentence', _resolveCategory('cloze',czWords)!==null && _resolveCategory('cloze',czWords).tab==='cloze');
+_sentences=null; _vnHitCache.clear();
+localStorage.clear();
 
 JSON.stringify(RESULTS);
 """

@@ -25,7 +25,43 @@ body {
   flex-direction: column;
   /* Reserve space under the fixed header so scrolled content never overlaps it */
   padding-top: 45px;
+  transition: padding-top .15s;
 }
+/* Extra room for the session bar (see .session-bar) while a Home-driven
+   session is running, regardless of which tab it's currently showing. */
+body.session-active { padding-top: 87px; }
+
+/* ── Persistent session bar ───────────────────────
+   Lives outside every .tab-panel (appended straight to <body> by plan.js)
+   so pause/skip/stop stay reachable no matter which drill tab a running
+   session has switched to — without this there'd be no way to pause or
+   stop except navigating back to Home first. */
+.session-bar {
+  position: fixed;
+  top: 45px;
+  left: 0; right: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .5rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.session-bar.hidden { display: none; }
+.session-bar-label { flex: 1; font-size: .85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-bar-time { color: var(--dim); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.session-bar-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  width: 32px;
+  height: 32px;
+  font-size: .95rem;
+  cursor: pointer;
+}
+.session-bar-btn:hover { background: var(--surface2); }
 
 /* ── Header / Tabs ─────────────────────────────── */
 /* Direct child selector — bare `header` would also match any nested <header>
@@ -57,7 +93,7 @@ body > header {
   white-space: nowrap;
 }
 
-.tabs { display: flex; }
+.tabs { display: flex; position: relative; }
 
 .tab-btn {
   background: none;
@@ -72,6 +108,33 @@ body > header {
 }
 .tab-btn:hover { color: var(--text); }
 .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* Desktop header's "More" dropdown — same role as the mobile bottom nav's
+   .bn-sheet, just anchored under a header button instead of bottom-fixed. */
+.tabs-more-sheet {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 150;
+  flex-direction: column;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+.tabs-more-open .tabs-more-sheet { display: flex; }
+.tabs-more-sheet .tab-btn {
+  text-align: left;
+  height: auto;
+  padding: 10px 12px;
+  border-bottom: none;
+  border-radius: 6px;
+}
+.tabs-more-sheet .tab-btn:hover { background: var(--surface2); }
+.tabs-more-sheet .tab-btn.active { background: rgba(224, 48, 64, .12); }
 
 /* ── Layout ────────────────────────────────────── */
 main {
@@ -1445,6 +1508,7 @@ main {
   background: var(--accent);
   transition: width .25s linear;
 }
+.plan-session-sub { color: var(--dim); font-size: .8rem; margin-top: .3rem; }
 .plan-session-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
 
 /* ── Reader ────────────────────────────────────── */

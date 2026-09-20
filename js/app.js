@@ -1,27 +1,39 @@
-// Vietnamese app — tab routing + module init. Mirrors the Mandarin app's
-// shape but with a leaner feature set (Plan / Vocab / Reader / Stats / Settings).
+// Vietnamese app — tab routing + module init.
+//
+// Home (id "plan", still internally named that way — see plan.js) is the
+// only primary destination for actual learning: it auto-decides and
+// auto-advances through the individual drill tabs itself, so the user never
+// has to pick one. Stats and Settings are the other two primary
+// destinations. Every individual drill tab, plus Reader and Basics, is
+// still fully reachable — just tucked behind "More" as a secondary/manual
+// option (free practice on one specific skill, or Reader's paste-your-own-
+// text workflow) rather than presented as an equal top-level choice.
 const LEARNING_TABS = new Set(['vocab', 'reader', 'tones', 'segments', 'basics', 'cloze', 'grammar', 'chunks', 'listening', 'speak']);
 
-// Tab metadata for the mobile bottom navigation. `core` items sit in the bar;
-// the rest live behind the "More" button.
+// Tab metadata driving BOTH the desktop header nav and the mobile bottom
+// nav (see buildHeaderNav/buildBottomNav below) — one source of truth.
+// `core` items are always visible; the rest live behind "More".
 const TAB_NAV = [
-  { id: 'plan',      icon: '🗓️', label: 'Plan',   core: true },
-  { id: 'vocab',     icon: '🃏', label: 'Vocab',  core: true },
-  { id: 'tones',     icon: '🎵', label: 'Tones',  core: true },
-  { id: 'segments',  icon: '👂', label: 'Sounds', core: false },
-  { id: 'cloze',     icon: '✏️', label: 'Cloze',  core: true },
-  { id: 'listening', icon: '🎧', label: 'Listen', core: true },
-  { id: 'speak',     icon: '🗣️', label: 'Speak',  core: false },
+  { id: 'plan',      icon: '🏠', label: 'Home',    core: true },
+  { id: 'stats',     icon: '📊', label: 'Stats',   core: true },
+  { id: 'settings',  icon: '⚙️', label: 'Settings', core: true },
+  { id: 'vocab',     icon: '🃏', label: 'Vocab',   core: false },
+  { id: 'tones',     icon: '🎵', label: 'Tones',   core: false },
+  { id: 'segments',  icon: '👂', label: 'Sounds',  core: false },
+  { id: 'cloze',     icon: '✏️', label: 'Cloze',   core: false },
   { id: 'grammar',   icon: '📐', label: 'Grammar', core: false },
   { id: 'chunks',    icon: '🧩', label: 'Chunks',  core: false },
-  { id: 'basics',    icon: '🔤', label: 'Basics', core: false },
-  { id: 'reader',    icon: '📚', label: 'Reader', core: false },
-  { id: 'stats',     icon: '📊', label: 'Stats',  core: false },
-  { id: 'settings',  icon: '⚙️', label: 'Settings', core: false },
+  { id: 'listening', icon: '🎧', label: 'Listen',  core: false },
+  { id: 'speak',     icon: '🗣️', label: 'Speak',   core: false },
+  { id: 'reader',    icon: '📚', label: 'Reader',  core: false },
+  { id: 'basics',    icon: '🔤', label: 'Basics',  core: false },
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-  const tabBtns   = document.querySelectorAll('.tab-btn');
+  buildHeaderNav();   // populate #header-tabs before querying .tab-btn below
+  // [data-tab] excludes the "More" toggle button, which reuses .tab-btn's
+  // look but isn't a real tab and must not run the tab-switch logic below.
+  const tabBtns   = document.querySelectorAll('.tab-btn[data-tab]');
   const tabPanels = document.querySelectorAll('.tab-panel');
 
   window.switchTab = (name) => {
@@ -70,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (entering === 'speak'    && speakModule)    speakModule.activate();
 
       updateBottomNavActive(entering);
+      document.getElementById('header-tabs')?.classList.remove('tabs-more-open');
     });
   });
 
@@ -173,6 +186,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (checkGoal()) showToast('Daily goal reached!');
   }, 15000);
 });
+
+// ── Desktop header navigation ───────────────────────────
+// Same reduced set as the mobile bottom nav (built from the same TAB_NAV
+// array): core items inline, everything else behind a "More" dropdown —
+// same reasoning as the bottom nav's More sheet, just laid out for a wide
+// header instead of a thumb-reachable bottom bar.
+function buildHeaderNav() {
+  const nav = document.getElementById('header-tabs');
+  if (!nav) return;
+  const btn = t => `<button class="tab-btn${t.id === 'plan' ? ' active' : ''}" data-tab="${t.id}" type="button">${esc(t.label)}</button>`;
+  const core = TAB_NAV.filter(t => t.core);
+  const secondary = TAB_NAV.filter(t => !t.core);
+  nav.innerHTML = core.map(btn).join('') + (secondary.length ? `
+    <button class="tab-btn tabs-more-btn" type="button">More ▾</button>
+    <div class="tabs-more-sheet">${secondary.map(btn).join('')}</div>
+  ` : '');
+  nav.querySelector('.tabs-more-btn')?.addEventListener('click', e => {
+    e.stopPropagation();
+    nav.classList.toggle('tabs-more-open');
+  });
+  document.addEventListener('click', e => { if (!nav.contains(e.target)) nav.classList.remove('tabs-more-open'); });
+}
 
 // ── Mobile bottom navigation ───────────────────────────
 // Thumb-reachable bar (shown only on narrow screens via CSS). Core tabs are

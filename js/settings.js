@@ -132,8 +132,9 @@ class SettingsModule {
     this.container.querySelector('#s-save').addEventListener('click', () => {
       const raw = Number(this.container.querySelector('#s-goal').value);
       const mins = Math.max(1, Math.min(480, raw || 30));
+      // Home reads dailyGoalMins live when it builds each session, so there's
+      // nothing to rescale/persist separately here anymore.
       saveSettings({ ...getSettings(), dailyGoalMins: mins });
-      if (typeof rescalePlanToMinutes === 'function') rescalePlanToMinutes(mins);
       const msg = this.container.querySelector('#s-saved');
       msg.classList.remove('hidden');
       setTimeout(() => msg.classList.add('hidden'), 2000);

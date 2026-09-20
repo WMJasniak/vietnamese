@@ -68,10 +68,50 @@ one confirmation tap — Android doesn't allow silent self-update). See
 
 ## Features
 
-- **Plan** — a timed, guided study session. Set minutes per segment; it counts
-  down, auto-switches to the right tab, and only accrues time while you're
-  active on that tab. The default is an evidence-based interleaved mix (see
-  *Research basis* below).
+### Home: one guided session, no tab-picking
+
+The app's default screen isn't a menu — it's a single "Ready to learn?"
+session that auto-decides what to practice and auto-advances through it,
+tab-switching itself on a timer. There's nothing to configure beyond the
+daily length (Settings); tapping "Start learning" is the only decision.
+This is a deliberate design choice, not just a convenience:
+
+- **Every drill is grouped into one of six categories** — ear training
+  (Tones/Sounds), Vocabulary, Structures (Grammar/Chunks), Cloze, Listening,
+  Speaking — rather than switching between all ~8 individual drills every
+  session. Interleaving 2 skills per session is well-evidenced for
+  retention; cramming many distinct tasks into one sitting measurably hurts
+  novices more than it helps, so a shared category rotates which specific
+  module fills it by calendar day (both still get regular practice across a
+  2-day window) or by whichever currently has content ready.
+- **Time allocation shifts by stage** (same known-word thresholds the app
+  already used): heavier on ear-training/vocabulary early since input
+  should outweigh output for beginners, shifting toward sentences and
+  speaking as vocabulary grows — but Speaking always gets a modest slice
+  even on day one, since output practice should never be zero.
+- **Nothing is ever scheduled with nothing to do.** Each category is
+  resolved to an actual module right before it starts (not all
+  precomputed), checking live content availability at that exact moment —
+  e.g. Cloze needs previously-seen vocabulary, which may not exist at the
+  very start of a new learner's first session but usually does by the time
+  the session reaches it, since Vocabulary runs first in the same session
+  and seeds newly-seen words. Anything that turns out empty (including a
+  daily new-card cap already used up) is swapped live for Listening, the
+  one drill with no such dependency. Reader (needs text you paste yourself)
+  and Basics (a static reference, not a drill) are never auto-scheduled —
+  there's no default content for either, so a timed rotation would
+  guarantee exactly the "nothing to do" failure this is meant to avoid.
+- **A persistent session bar** (pause / skip ahead / stop, current segment,
+  time remaining) stays visible across every tab the session switches you
+  to — otherwise those controls would live only on the Home screen itself,
+  which the session immediately switches away from.
+
+Every individual drill — Vocab, Tones, Sounds, Cloze, Grammar, Chunks,
+Listening, Speak, Reader, Basics — is still fully reachable from **More**,
+for free practice on one specific skill or Reader's paste-your-own-text
+workflow. It's just not presented as an equal top-level choice: Home,
+Stats, and Settings are the only primary destinations.
+
 - **Basics** — beginner foundation: the alphabet (chữ Quốc ngữ) with
   pronunciation audio, the six tones, a Telex typing cheat-sheet, and survival
   phrases. Everything is tap-to-listen.
@@ -139,7 +179,8 @@ js/
   sentences.js    Example-sentence lookup over sentences.json
   speak.js        Speaking-practice tab: ASR/record-and-echo pronunciation drill
   stats.js        Stats dashboard
-  plan.js         Timed guided-study sessions
+  plan.js         Home screen: stage/availability-aware session scheduler
+                  (still named "plan" internally for continuity)
   settings.js     Settings UI + backup export/import
 ```
 
@@ -216,15 +257,26 @@ the **end** of the syllable — `s`=sắc, `f`=huyền, `r`=hỏi, `x`=ngã, `j`
 
 ## Research basis
 
-The default Plan and the learning modes are grounded in second-language
-acquisition research:
+The default Home session and the learning modes are grounded in
+second-language acquisition research (see also the *Home* section above for
+the session-structuring rationale specifically):
 
 - **Spaced repetition** — distributed practice reliably beats massing (Kim 2022
   meta-analysis); the app uses FSRS.
 - **Retrieval practice & production** — recall beats recognition, and productive,
   in-context retrieval is especially durable → typed answers, and the Cloze mode.
-- **Interleaving** — mixing skills/modalities within a session aids retention →
-  the Plan interleaves tones, vocab, cloze, listening, and reading.
+- **Interleaving, without over-fragmenting** — mixing skills/modalities within a
+  session aids retention (contextual interference effect), but the benefit is
+  demonstrated with a couple of alternating tasks, not many at once, and
+  over-fragmenting a session measurably hurts novices more than it helps →
+  Home groups the ~8 drills into a handful of categories and rotates which
+  specific one fills a shared slot by day, rather than interleaving all of
+  them every single session.
+- **Input before output, but never zero output** — beginners benefit from
+  weighting comprehension/perception over production early on, shifting
+  gradually as proficiency grows, while still practicing production in some
+  amount from day one → Home's per-stage time split, and Speaking's minimum
+  slice at every stage.
 - **High-Variability Phonetic Training (HVPT)** — the best-supported method for
   L2 sound perception (varied talkers/words + immediate feedback) → both the
   Tones drill (pitch) and the Sounds drill (consonants/vowels) use varied
