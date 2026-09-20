@@ -278,10 +278,7 @@ class PlanModule {
     bar.id = 'session-bar';
     bar.className = 'session-bar hidden';
     bar.title = "Today's progress toward your daily goal";
-    bar.innerHTML = `
-      <div class="sb-goal-bar"><div class="sb-goal-fill" id="sb-goal-fill"></div></div>
-      <span class="sb-goal-text" id="sb-goal-text"></span>
-    `;
+    bar.innerHTML = `<div class="sb-goal-fill" id="sb-goal-fill"></div>`;
     document.body.appendChild(bar);
     this.bar = bar;
   }
@@ -296,8 +293,6 @@ class PlanModule {
     if (g) {
       const pct = g.goalSecs ? Math.min(100, 100 * g.today / g.goalSecs) : 0;
       this.bar.querySelector('#sb-goal-fill').style.width = `${pct.toFixed(1)}%`;
-      this.bar.querySelector('#sb-goal-text').textContent =
-        `${Math.round(g.today / 60)}/${Math.round(g.goalSecs / 60)} min`;
     }
   }
 

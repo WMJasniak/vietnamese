@@ -123,12 +123,12 @@ deliberate design choice, not just a convenience:
   keeps flowing — crossing the goal just fires a one-time celebratory toast,
   read from the same real, persistent study-time tracker Stats uses (not a
   per-session counter), so it stays correct across app restarts.
-- **The only persistent UI is a daily-goal progress bar** — today's minutes
-  vs. your goal, nothing else. No exercise label (it'd keep naming a drill
-  you're not looking at once you switch to Stats/Settings/another drill,
-  implying you were still mid-exercise there) and no pause/skip/stop
-  buttons: nothing here needs manual pausing (see above), manual skipping
-  (More reaches every drill directly), or stopping (the queue never
+- **The only persistent UI is a thin daily-goal progress bar** — no minute
+  count, no exercise label (it'd keep naming a drill you're not looking at
+  once you switch to Stats/Settings/another drill, implying you were still
+  mid-exercise there), no pause/skip/stop buttons: nothing here needs
+  manual pausing (see above), manual skipping (More reaches every drill
+  directly), or stopping (the queue never
   dead-ends, so there's nothing to end). It stays visible across every tab
   since it reflects the whole day, not just whatever's currently running.
 

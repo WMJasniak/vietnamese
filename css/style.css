@@ -29,28 +29,23 @@ body {
 }
 /* Extra room for the session bar (see .session-bar) while Home is showing
    the daily-goal progress bar, regardless of which tab is active. */
-body.session-active { padding-top: 68px; }
+body.session-active { padding-top: 49px; }
 
 /* ── Persistent daily-goal progress bar ────────────
    Lives outside every .tab-panel (appended straight to <body> by plan.js)
-   so it stays visible no matter which tab is active — just today's
-   progress toward the goal, nothing else (no label, no controls). */
+   so it stays visible no matter which tab is active. Just a bar — no
+   label, no minute count, no controls; the fill itself is the information. */
 .session-bar {
   position: fixed;
   top: 45px;
   left: 0; right: 0;
   z-index: 90;
-  display: flex;
-  align-items: center;
-  gap: .6rem;
-  padding: .45rem 1rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  height: 4px;
+  background: var(--surface2);
+  overflow: hidden;
 }
 .session-bar.hidden { display: none; }
-.sb-goal-bar { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
-.sb-goal-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 3px; transition: width .4s; }
-.sb-goal-text { color: var(--dim); font-size: .75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sb-goal-fill { height: 100%; width: 0%; background: var(--accent); transition: width .4s; }
 
 /* ── Header / Tabs ─────────────────────────────── */
 /* Direct child selector — bare `header` would also match any nested <header>
