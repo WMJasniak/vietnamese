@@ -16,6 +16,21 @@
          going through a browser download + file manager each time. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Android 11+ (API 30+) package-visibility: without declaring this,
+         the app can't see whether anything on the device handles speech
+         recognition at all, even when it does — WebView's SpeechRecognition
+         then fails immediately (surfaced to the page as a generic
+         "not-allowed" error, indistinguishable from an actual mic-permission
+         denial) because its own availability check comes back empty. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
