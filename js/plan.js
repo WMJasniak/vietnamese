@@ -60,6 +60,13 @@
 //     there's no default content for either, so putting them in a timed
 //     rotation would be exactly the "nothing to do" failure this is meant
 //     to avoid. Both stay reachable from More as manual/secondary tools.
+//   - The only persistent UI is a daily-goal progress bar — no exercise
+//     label (it'd keep naming a drill you're not looking at once you
+//     switch to Stats/Settings/another drill) and no pause/skip/stop.
+//     Nothing here needs manual pausing (time only counts toward the
+//     current category while you're actually on it — see _tick) or manual
+//     skipping (More reaches every drill directly) or stopping (the queue
+//     never dead-ends, so there's nothing to end).
 // DAY_MS is already declared by srs.js (loaded earlier) — reused here.
 const MIN_SEGMENT_MIN = 2;   // below this a slice is too thin to be worth a switch
 // A segment becomes eligible to hand off to the next category slightly
@@ -255,13 +262,13 @@ class PlanModule {
     this._buildSessionBar();
   }
 
-  // A session keeps running while the user is off on whatever tab it just
-  // switched them to (that's the whole point) — which means the Home panel
-  // itself, and the pause/skip/stop controls that used to live only inside
-  // it, go invisible the moment the session switches tabs. Without this,
-  // there'd be no way to pause or stop a running session except navigating
-  // back to Home first. This bar lives outside any tab-panel (appended
-  // directly to <body>) so it stays visible across every tab switch.
+  // A daily-goal progress bar, nothing else — no exercise label (it'd keep
+  // naming whatever drill is running even while looking at Stats/Settings,
+  // implying you were still mid-exercise there) and no pause/skip/stop
+  // (the queue already never interrupts mid-question and never dead-ends,
+  // so there's nothing those controls would meaningfully do; leaving one
+  // drill for another is just using More). Lives outside any tab-panel
+  // (appended directly to <body>) so it stays visible across every tab.
   _buildSessionBar() {
     if (document.getElementById('session-bar')) {
       this.bar = document.getElementById('session-bar');
@@ -270,20 +277,12 @@ class PlanModule {
     const bar = document.createElement('div');
     bar.id = 'session-bar';
     bar.className = 'session-bar hidden';
+    bar.title = "Today's progress toward your daily goal";
     bar.innerHTML = `
-      <span class="session-bar-label" id="sb-label"></span>
-      <div class="sb-goal" id="sb-goal" title="Today's progress toward your daily goal">
-        <div class="sb-goal-bar"><div class="sb-goal-fill" id="sb-goal-fill"></div></div>
-        <span class="sb-goal-text" id="sb-goal-text"></span>
-      </div>
-      <button class="session-bar-btn" id="sb-pause" type="button" aria-label="Pause">⏸</button>
-      <button class="session-bar-btn" id="sb-skip" type="button" aria-label="Skip ahead">⏭</button>
-      <button class="session-bar-btn" id="sb-stop" type="button" aria-label="Stop session">✕</button>
+      <div class="sb-goal-bar"><div class="sb-goal-fill" id="sb-goal-fill"></div></div>
+      <span class="sb-goal-text" id="sb-goal-text"></span>
     `;
     document.body.appendChild(bar);
-    bar.querySelector('#sb-pause').addEventListener('click', () => this._togglePause());
-    bar.querySelector('#sb-skip').addEventListener('click', () => this._advance());
-    bar.querySelector('#sb-stop').addEventListener('click', () => this._stop());
     this.bar = bar;
   }
 
@@ -293,7 +292,6 @@ class PlanModule {
     document.body.classList.toggle('session-active', !!s);
     this.bar.classList.toggle('hidden', !s);
     if (!s) return;
-    this.bar.querySelector('#sb-label').textContent = s.current.label;
     const g = (typeof getGoalStats === 'function') ? getGoalStats() : null;
     if (g) {
       const pct = g.goalSecs ? Math.min(100, 100 * g.today / g.goalSecs) : 0;
@@ -301,8 +299,6 @@ class PlanModule {
       this.bar.querySelector('#sb-goal-text').textContent =
         `${Math.round(g.today / 60)}/${Math.round(g.goalSecs / 60)} min`;
     }
-    this.bar.querySelector('#sb-pause').textContent = s.paused ? '▶' : '⏸';
-    this.bar.querySelector('#sb-pause').setAttribute('aria-label', s.paused ? 'Resume' : 'Pause');
   }
 
   _goalMinutes() {
@@ -327,7 +323,6 @@ class PlanModule {
       current: { ..._resolveOrFallback(first.category, this._words), minutes: first.minutes },
       elapsedSec: 0,
       totalSec: first.minutes * 60,
-      paused: false,
       lastTick: Date.now(),
       pendingAdvance: false,
     };
@@ -338,37 +333,18 @@ class PlanModule {
     this._updateSessionBar();
   }
 
-  _stop() {
-    if (this._session && !confirm('End this session?')) return;
-    this._session = null;
-    this._stopTicker();
-    // Deliberately doesn't force a tab switch like session-complete does —
-    // the user chose to stop from whatever tab they were on and may well
-    // want to keep freely practicing right there without the timer.
-    showToast('Session stopped');
-    this._render();
-    this._updateSessionBar();
-  }
-
-  _togglePause() {
-    if (!this._session) return;
-    this._session.paused = !this._session.paused;
-    this._session.lastTick = Date.now();
-    this._updateSessionBar();
-  }
-
-  // Moves to the next category. Called either by the user (Skip, always
-  // immediate) or by _installAdvanceGate (only once the learner has
-  // finished the current item and clicked its own "Next →"). The queue
-  // never truly runs out — once empty it's rebuilt from the daily goal, so
-  // there's always a next exercise; the goal itself is only (re-)checked
-  // here for the one-time celebratory toast, not as a stopping point.
+  // Moves to the next category, once the learner has finished the current
+  // item and clicked its own "Next →" (see _installAdvanceGate — this is
+  // never called on a raw timer). The queue never truly runs out — once
+  // empty it's rebuilt from the daily goal, so there's always a next
+  // exercise; the goal itself is only (re-)checked here for the one-time
+  // celebratory toast, not as a stopping point.
   _advance() {
     if (!this._session) return;
     const s = this._session;
     if (!s.queue.length) {
       if (typeof checkGoal === 'function' && checkGoal()) {
-        showToast('Daily goal complete! 🎉 Keep going whenever you like — Stop ends the session.');
+        showToast('Daily goal complete! 🎉 Keep going whenever you like.');
       }
       s.queue = _buildCategoryQueue(this._goalMinutes());
       if (!s.queue.length) s.queue = [{ category: 'listening', minutes: this._goalMinutes() || 10 }];
@@ -377,7 +353,6 @@ class PlanModule {
     s.current = { ..._resolveOrFallback(next.category, this._words), minutes: next.minutes };
     s.elapsedSec = 0;
     s.totalSec = next.minutes * 60;
-    s.paused = false;
     s.pendingAdvance = false;
     s.lastTick = Date.now();
     this._lastActivity = Date.now();
@@ -429,15 +404,23 @@ class PlanModule {
     const s = this._session;
     if (!s) return;
     const now = Date.now();
-    const dt = (now - s.lastTick) / 1000;
+    // Clamped so a clock that appears to move backward (DST fallback, a
+    // manual/NTP time correction) can't drive elapsedSec negative — worst
+    // case that tick just contributes nothing, never a wrong direction.
+    const dt = Math.max(0, (now - s.lastTick) / 1000);
     s.lastTick = now;
 
+    // Only counts toward the current category's budget while the learner is
+    // actually looking at it — switching to Stats/Settings/another drill
+    // (onCorrectTab false), backgrounding the app (visible false), or
+    // sitting idle (active false) all pause accrual with no separate pause
+    // control needed for it.
     const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
     const onCorrectTab = activeTab === s.current.tab;
     const visible = !document.hidden;
     const active = (now - this._lastActivity) < IDLE_LIMIT_MS;
 
-    if (!s.paused && visible && onCorrectTab && active) {
+    if (visible && onCorrectTab && active) {
       s.elapsedSec = Math.min(s.totalSec, s.elapsedSec + dt);
     }
 

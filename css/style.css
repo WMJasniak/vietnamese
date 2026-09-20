@@ -27,15 +27,14 @@ body {
   padding-top: 45px;
   transition: padding-top .15s;
 }
-/* Extra room for the session bar (see .session-bar) while a Home-driven
-   session is running, regardless of which tab it's currently showing. */
-body.session-active { padding-top: 87px; }
+/* Extra room for the session bar (see .session-bar) while Home is showing
+   the daily-goal progress bar, regardless of which tab is active. */
+body.session-active { padding-top: 68px; }
 
-/* ── Persistent session bar ───────────────────────
+/* ── Persistent daily-goal progress bar ────────────
    Lives outside every .tab-panel (appended straight to <body> by plan.js)
-   so pause/skip/stop stay reachable no matter which drill tab a running
-   session has switched to — without this there'd be no way to pause or
-   stop except navigating back to Home first. */
+   so it stays visible no matter which tab is active — just today's
+   progress toward the goal, nothing else (no label, no controls). */
 .session-bar {
   position: fixed;
   top: 45px;
@@ -44,29 +43,14 @@ body.session-active { padding-top: 87px; }
   display: flex;
   align-items: center;
   gap: .6rem;
-  padding: .5rem 1rem;
+  padding: .45rem 1rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 .session-bar.hidden { display: none; }
-.session-bar-label { flex: 1; font-size: .85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Daily-goal progress, not a per-exercise countdown — the learner asked not
-   to see a timer pushing them along; this shows how today is going instead. */
-.sb-goal { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; }
-.sb-goal-bar { width: 46px; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.sb-goal-bar { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
 .sb-goal-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 3px; transition: width .4s; }
 .sb-goal-text { color: var(--dim); font-size: .75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.session-bar-btn {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  width: 32px;
-  height: 32px;
-  font-size: .95rem;
-  cursor: pointer;
-}
-.session-bar-btn:hover { background: var(--surface2); }
 
 /* ── Header / Tabs ─────────────────────────────── */
 /* Direct child selector — bare `header` would also match any nested <header>

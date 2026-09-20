@@ -102,8 +102,10 @@ deliberate design choice, not just a convenience:
   button/swipe/Enter-key action every drill already uses to move on), never
   before. Since that wait eats into the segment's real length, the handoff
   arms itself a little before the nominal budget so the average still lands
-  close to what was planned. Skip ahead in the session bar still switches
-  immediately — that's an explicit override, not an interruption.
+  close to what was planned. That budget also only counts down while you're
+  actually looking at that category — switching to Stats/Settings/another
+  drill, backgrounding the app, or sitting idle all pause it with no
+  separate pause control needed.
 - **Nothing is ever scheduled with nothing to do.** Each category is
   resolved to an actual module right before it starts (not all
   precomputed), checking live content availability at that exact moment —
@@ -121,12 +123,14 @@ deliberate design choice, not just a convenience:
   keeps flowing — crossing the goal just fires a one-time celebratory toast,
   read from the same real, persistent study-time tracker Stats uses (not a
   per-session counter), so it stays correct across app restarts.
-- **A persistent session bar** (pause / skip ahead / stop, current segment,
-  today's progress toward the daily goal) stays visible across every tab
-  the session switches you to — otherwise those controls would live only on
-  the Home screen itself, which the session immediately switches away from.
-  It shows a goal-progress bar rather than a countdown, on purpose: nothing
-  here is meant to feel like a clock pushing you along.
+- **The only persistent UI is a daily-goal progress bar** — today's minutes
+  vs. your goal, nothing else. No exercise label (it'd keep naming a drill
+  you're not looking at once you switch to Stats/Settings/another drill,
+  implying you were still mid-exercise there) and no pause/skip/stop
+  buttons: nothing here needs manual pausing (see above), manual skipping
+  (More reaches every drill directly), or stopping (the queue never
+  dead-ends, so there's nothing to end). It stays visible across every tab
+  since it reflects the whole day, not just whatever's currently running.
 
 Every individual drill — Vocab, Tones, Sounds, Cloze, Grammar, Chunks,
 Listening, Speak, Reader, Basics — is still fully reachable from **More**,
