@@ -15,22 +15,20 @@ class SettingsModule {
         <div class="stats-h">Appearance</div>
         <div class="setting-row">
           <span class="setting-label">Theme</span>
-          <div class="setting-control">
-            <select id="s-theme" class="setting-input">
-              <option value="light" ${(s.theme || 'light') === 'light' ? 'selected' : ''}>Light</option>
-              <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>Dark</option>
-            </select>
-          </div>
+          <label class="theme-switch">
+            <input type="checkbox" id="s-theme" ${s.theme === 'dark' ? 'checked' : ''}>
+            <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
+            <span class="theme-switch-label" id="s-theme-label">${s.theme === 'dark' ? 'Dark' : 'Light'}</span>
+          </label>
         </div>
       </section>
 
       <section class="stats-section">
         <div class="stats-h">Daily Goal</div>
-        <div class="setting-row">
-          <label class="setting-label" for="s-goal">Study time goal</label>
+        <div class="setting-row setting-row--end">
           <div class="setting-control">
             <input type="number" id="s-goal" class="setting-input" min="1" max="480" value="${s.dailyGoalMins}">
-            <span class="setting-unit">minutes / day</span>
+            <span class="setting-unit">min/day</span>
           </div>
         </div>
         <div class="setting-actions">
@@ -143,9 +141,10 @@ class SettingsModule {
     `;
 
     this.container.querySelector('#s-theme').addEventListener('change', e => {
-      const theme = e.target.value === 'dark' ? 'dark' : 'light';
+      const theme = e.target.checked ? 'dark' : 'light';
       saveSettings({ ...getSettings(), theme });
       applyTheme(theme);
+      this.container.querySelector('#s-theme-label').textContent = theme === 'dark' ? 'Dark' : 'Light';
     });
 
     this.container.querySelector('#s-save').addEventListener('click', () => {
