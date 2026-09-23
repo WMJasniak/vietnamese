@@ -345,3 +345,23 @@ function _showUpdateBanner() {
   el.querySelector('#ub-update').addEventListener('click', () => { downloadAndroidUpdate(); el.remove(); });
   el.querySelector('#ub-dismiss').addEventListener('click', () => el.remove());
 }
+
+// ── Browser/PWA updates ──────────────────────────────────
+// The browser-side counterpart to _showUpdateBanner above — see the
+// registration code in index.html for when this actually gets called.
+// Same banner styling/behavior, "Refresh" reloads immediately (there's
+// nothing to download first, the new files are already cached) rather than
+// starting a background download.
+window.__showPwaUpdateBanner = function () {
+  if (document.querySelector('.update-banner')) return;
+  const el = document.createElement('div');
+  el.className = 'update-banner';
+  el.innerHTML = `
+    <span>A new version is ready</span>
+    <button class="btn" id="ub-refresh" type="button">Refresh</button>
+    <button class="update-banner-x" id="ub-dismiss" type="button" aria-label="Dismiss">✕</button>
+  `;
+  document.body.appendChild(el);
+  el.querySelector('#ub-refresh').addEventListener('click', () => location.reload());
+  el.querySelector('#ub-dismiss').addEventListener('click', () => el.remove());
+};

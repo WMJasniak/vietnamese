@@ -10,6 +10,13 @@ class SettingsModule {
 
   _build() {
     const s = getSettings();
+    // The Android app already hides the system nav bar natively (see
+    // MainActivity.hideNavigationBar) — this is the browser's own way to
+    // reclaim that same screen space, so it's only offered where the
+    // native version doesn't already handle it and the Fullscreen API
+    // actually exists (notably absent on iOS Safari for non-video elements).
+    const canFullscreen = !window.AndroidUpdater &&
+      !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
     this.container.innerHTML = `
       <section class="stats-section">
         <div class="stats-h">Appearance</div>
@@ -21,6 +28,16 @@ class SettingsModule {
             <span class="theme-switch-label" id="s-theme-label">${s.theme === 'dark' ? 'Dark' : 'Light'}</span>
           </label>
         </div>
+        ${canFullscreen ? `
+        <div class="setting-row">
+          <span class="setting-label">Fullscreen (hide browser bars)</span>
+          <label class="theme-switch">
+            <input type="checkbox" id="s-fullscreen">
+            <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
+            <span class="theme-switch-label" id="s-fullscreen-label">Off</span>
+          </label>
+        </div>
+        ` : ''}
       </section>
 
       <section class="stats-section">
@@ -112,7 +129,15 @@ class SettingsModule {
         </div>
         <button class="btn hidden" id="s-update-install" type="button">Download &amp; install update</button>
       </section>
-      ` : ''}
+      ` : ('serviceWorker' in navigator ? `
+      <section class="stats-section">
+        <div class="stats-h">App Updates</div>
+        <div class="setting-row">
+          <span class="setting-label" id="s-pwa-update-status">Checked automatically on launch</span>
+          <button class="btn" id="s-pwa-update-check">Check for updates</button>
+        </div>
+      </section>
+      ` : '')}
 
       <section class="stats-section">
         <div class="stats-h">Backup &amp; Restore</div>
@@ -146,6 +171,29 @@ class SettingsModule {
       applyTheme(theme);
       this.container.querySelector('#s-theme-label').textContent = theme === 'dark' ? 'Dark' : 'Light';
     });
+
+    const fsToggle = this.container.querySelector('#s-fullscreen');
+    if (fsToggle) {
+      fsToggle.addEventListener('change', e => {
+        const el = document.documentElement;
+        if (e.target.checked) {
+          const req = el.requestFullscreen || el.webkitRequestFullscreen;
+          req?.call(el).catch(() => { e.target.checked = false; });
+        } else {
+          const exit = document.exitFullscreen || document.webkitExitFullscreen;
+          exit?.call(document);
+        }
+      });
+      // Also reacts to leaving fullscreen via Esc/back-gesture, not just the toggle.
+      const syncFsState = () => {
+        const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        fsToggle.checked = on;
+        const lbl = this.container.querySelector('#s-fullscreen-label');
+        if (lbl) lbl.textContent = on ? 'On' : 'Off';
+      };
+      document.addEventListener('fullscreenchange', syncFsState);
+      document.addEventListener('webkitfullscreenchange', syncFsState);
+    }
 
     this.container.querySelector('#s-save').addEventListener('click', () => {
       const raw = Number(this.container.querySelector('#s-goal').value);
@@ -218,6 +266,25 @@ class SettingsModule {
         checkForAndroidUpdate();
       });
       this.container.querySelector('#s-update-install').addEventListener('click', () => downloadAndroidUpdate());
+    }
+
+    const pwaCheckBtn = this.container.querySelector('#s-pwa-update-check');
+    if (pwaCheckBtn) {
+      pwaCheckBtn.addEventListener('click', async () => {
+        const statusEl = this.container.querySelector('#s-pwa-update-status');
+        statusEl.textContent = 'Checking…';
+        try {
+          const reg = await navigator.serviceWorker.getRegistration();
+          await reg?.update();
+          // If this found a newer version, the service worker activates it
+          // in the background and index.html's controllerchange listener
+          // shows the "new version ready" banner within a moment — nothing
+          // more to report synchronously here.
+          statusEl.textContent = "Checked — you'll see a banner here if an update was found";
+        } catch {
+          statusEl.textContent = "Couldn't check — try again once you're online";
+        }
+      });
     }
   }
 

@@ -76,6 +76,7 @@ function speakVi(text) {
       if (window.AndroidTTS.canSpeak()) { window.AndroidTTS.speak(String(text)); return; }
     } catch {}
     // Bridge present but no Vietnamese voice installed → try online, then guide install.
+    _showNoVoiceNotice();
     _speakViNet(text);
     return;
   }
@@ -83,7 +84,12 @@ function speakVi(text) {
   if (window.speechSynthesis && _viVoices().length) {
     _speakViLocal(text);
   } else {
-    // 3) Online Google TTS fallback.
+    // 3) Online Google TTS fallback. Shown proactively here (not just on a
+    // failed play()) — this path works, but it's the Google Translate
+    // endpoint, noticeably lower quality than a real installed voice and
+    // it needs a network connection every time. Worth surfacing once per
+    // session even when it succeeds, not just when it doesn't.
+    _showNoVoiceNotice();
     _speakViNet(text);
   }
 }
@@ -114,10 +120,6 @@ function _speakViNet(text) {
 }
 
 function _showNoVoiceNotice() {
-  // Disabled: TTS works (native Android engine / online fallback), so the
-  // install banner was just noise. Kept as a no-op so callers don't break.
-  return;
-  /* eslint-disable no-unreachable */
   if (sessionStorage.getItem('vn_voice_notice_dismissed')) return;
   if (document.getElementById('vn-voice-notice')) return;
 
